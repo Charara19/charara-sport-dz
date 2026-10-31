@@ -38,6 +38,18 @@ const platforms = [
   },
 ];
 
+const algerianChannels = [
+  { name: 'القناة الأولى TV1', subtitle: 'القناة الوطنية', icon: '🇩🇿', url: 'https://www.entv.dz/ar/tv1' },
+  { name: 'قناة الجزائرية TV2', subtitle: 'Canal Algérie', icon: '📺', url: 'https://www.entv.dz/ar/tv2' },
+  { name: 'القناة الثالثة TV3', subtitle: 'الإخبارية', icon: '📰', url: 'https://www.entv.dz/ar/tv3' },
+  { name: 'القناة الرابعة TV4', subtitle: 'تمازيغت', icon: 'ⵣ', url: 'https://www.entv.dz/dz-tif/tv4' },
+  { name: 'القناة الخامسة TV5', subtitle: 'القرآن الكريم', icon: '📖', url: 'https://www.entv.dz/ar/tv5' },
+  { name: 'القناة السادسة TV6', subtitle: 'الشباب والعائلة', icon: '🎬', url: 'https://www.entv.dz/ar/tv6' },
+  { name: 'القناة السابعة TV7', subtitle: 'المعرفة', icon: '📚', url: 'https://www.entv.dz/ar/tv7' },
+  { name: 'القناة الثامنة TV8', subtitle: 'الذاكرة', icon: '🏛️', url: 'https://www.entv.dz/ar/tv8' },
+  { name: 'القناة التاسعة TV9', subtitle: 'البرلمانية', icon: '🏛️', url: 'https://www.entv.dz/ar/tv9' },
+];
+
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
@@ -128,6 +140,36 @@ export default function App() {
             <Text style={styles.watchButtonText}>
               افتح المنصة الرسمية ←
             </Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <SectionTitle title="القنوات الجزائرية الرسمية" />
+
+      <View style={styles.channelIntro}>
+        <Text style={styles.channelIntroTitle}>🇩🇿 التلفزيون الجزائري EPTV</Text>
+        <Text style={styles.channelIntroText}>
+          اختر القناة لفتح صفحتها الرسمية. البث المباشر داخل التطبيق
+          سيُفعّل عند توفر رابط بث رسمي قابل للتشغيل.
+        </Text>
+      </View>
+
+      {algerianChannels.map((channel) => (
+        <View key={channel.name} style={styles.channelCard}>
+          <View style={styles.channelInfo}>
+            <Text style={styles.channelIcon}>{channel.icon}</Text>
+            <View style={styles.channelText}>
+              <Text style={styles.channelName}>{channel.name}</Text>
+              <Text style={styles.channelSubtitle}>{channel.subtitle}</Text>
+              <Text style={styles.channelStatus}>صفحة رسمية للقناة</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.channelButton}
+            onPress={() => openPlatform(channel.url)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.channelButtonText}>فتح صفحة القناة ←</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -636,6 +678,76 @@ const styles = StyleSheet.create({
   watchButtonText: {
     color: BG,
     fontSize: 13,
+    fontWeight: '900',
+  },
+  channelIntro: {
+    backgroundColor: '#10271A',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#205735',
+    padding: 16,
+    marginBottom: 13,
+  },
+  channelIntroTitle: {
+    color: GREEN,
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  channelIntroText: {
+    color: '#B2C5B8',
+    fontSize: 12,
+    lineHeight: 21,
+    textAlign: 'right',
+    marginTop: 8,
+  },
+  channelCard: {
+    backgroundColor: PANEL,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#24372B',
+    padding: 15,
+    marginBottom: 11,
+  },
+  channelInfo: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+  },
+  channelIcon: {
+    fontSize: 29,
+    marginLeft: 13,
+  },
+  channelText: {
+    flex: 1,
+  },
+  channelName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  channelSubtitle: {
+    color: MUTED,
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  channelStatus: {
+    color: GREEN,
+    fontSize: 10,
+    textAlign: 'right',
+    marginTop: 6,
+  },
+  channelButton: {
+    backgroundColor: GREEN,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 13,
+  },
+  channelButtonText: {
+    color: BG,
+    fontSize: 12,
     fontWeight: '900',
   },
   noticeCard: {
