@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   StatusBar,
   StyleSheet,
@@ -53,6 +54,8 @@ const algerianChannels = [
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
+  const videoViewRef = useRef(null);
+  const player = useVideoPlayer(null);
 
   const tabs = [
     'الرئيسية',
@@ -151,6 +154,51 @@ export default function App() {
         <Text style={styles.channelIntroText}>
           اختر القناة لفتح صفحتها الرسمية. البث المباشر داخل التطبيق
           سيُفعّل عند توفر رابط بث رسمي قابل للتشغيل.
+        </Text>
+      </View>
+
+      <SectionTitle title="مشغل شرارة الداخلي" />
+
+      <View style={styles.playerCard}>
+        <View style={styles.playerScreen}>
+          <VideoView
+            ref={videoViewRef}
+            style={styles.videoView}
+            player={player}
+            nativeControls={false}
+            allowsFullscreen
+            allowsPictureInPicture={false}
+          />
+          <View style={styles.playerOverlay}>
+            <Text style={styles.playerIcon}>▶</Text>
+            <Text style={styles.playerMessage}>المشغّل جاهز</Text>
+            <Text style={styles.playerHint}>
+              بانتظار رابط بث رسمي قابل للتشغيل
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.playerControls}>
+          <TouchableOpacity
+            style={styles.playerButton}
+            onPress={() => Alert.alert(
+              'لا يوجد بث بعد',
+              'سيُفعّل التشغيل عند إضافة رابط فيديو رسمي صالح.'
+            )}
+          >
+            <Text style={styles.playerButtonText}>▶ تشغيل</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.playerButton}
+            onPress={() => videoViewRef.current?.enterFullscreen()}
+          >
+            <Text style={styles.playerButtonText}>⛶ ملء الشاشة</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.playerFootnote}>
+          يدعم روابط الفيديو المباشرة مثل HLS عند توفر مصدر مرخّص.
         </Text>
       </View>
 
@@ -599,6 +647,75 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 7,
   },
+  playerCard: {
+    backgroundColor: PANEL,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#205735',
+  },
+  playerScreen: {
+    height: 190,
+    backgroundColor: '#020403',
+    borderRadius: 13,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoView: {
+    width: '100%',
+    height: '100%',
+  },
+  playerOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    width: '100%',
+    height: '100%',
+  },
+  playerIcon: {
+    color: GREEN,
+    fontSize: 34,
+    marginBottom: 8,
+  },
+  playerMessage: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  playerHint: {
+    color: '#B2C5B8',
+    fontSize: 11,
+    marginTop: 7,
+  },
+  playerControls: {
+    flexDirection: 'row-reverse',
+    gap: 10,
+    marginTop: 12,
+  },
+  playerButton: {
+    flex: 1,
+    backgroundColor: '#153D27',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: GREEN,
+  },
+  playerButtonText: {
+    color: GREEN,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  playerFootnote: {
+    color: MUTED,
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+
   broadcastHero: {
     backgroundColor: '#10271A',
     borderRadius: 22,
