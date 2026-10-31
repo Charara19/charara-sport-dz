@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "شرارة سبورت DZ",
+    "slug": "charara-sport-dz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#070B09"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.charara.sportdz"
+    },
+    "android": {
+      "package": "com.charara.sportdz",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#070B09"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
