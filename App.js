@@ -5,6 +5,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
   ScrollView,
   TouchableOpacity,
@@ -54,6 +55,7 @@ const algerianChannels = [
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
+  const [streamUrl, setStreamUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
 
@@ -66,6 +68,26 @@ export default function App() {
   ];
 
   const categories = ['الكل', 'مباشر', 'اليوم', 'غداً'];
+
+  const playStream = () => {
+    const url = streamUrl.trim();
+
+    if (!/^https?:\/\//i.test(url)) {
+      Alert.alert('رابط غير صالح', 'أدخل رابطاً يبدأ بـ https:// أو http://');
+      return;
+    }
+
+    try {
+      const isHls = /\.m3u8(?:$|[?#])/i.test(url);
+      player.replace({
+        uri: url,
+        ...(isHls ? { contentType: 'hls' } : {}),
+      });
+      player.play();
+    } catch (error) {
+      Alert.alert('تعذر التشغيل', 'تحقق من الرابط وحاول مرة أخرى.');
+    }
+  };
 
   const openPlatform = async (url) => {
     try {
@@ -169,22 +191,40 @@ export default function App() {
             allowsFullscreen
             allowsPictureInPicture={false}
           />
-          <View style={styles.playerOverlay}>
-            <Text style={styles.playerIcon}>▶</Text>
-            <Text style={styles.playerMessage}>المشغّل جاهز</Text>
-            <Text style={styles.playerHint}>
-              بانتظار رابط بث رسمي قابل للتشغيل
-            </Text>
-          </View>
         </View>
+
+        <TextInput
+          value={streamUrl}
+          onChangeText={setStreamUrl}
+          placeholder="ألصق رابط البث هنا (.m3u8 أو MP4)"
+          placeholderTextColor={MUTED}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          style={{
+            backgroundColor: '#020403',
+            color: '#FFFFFF',
+            borderColor: '#205735',
+            borderWidth: 1,
+            borderRadius: 10,
+            padding: 12,
+            marginTop: 12,
+            textAlign: 'left',
+          }}
+        />
+
+        <TouchableOpacity
+          style={[styles.playerButton, { marginTop: 10 }]}
+          onPress={playStream}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.playerButtonText}>▶ تحميل وتشغيل الرابط</Text>
+        </TouchableOpacity>
 
         <View style={styles.playerControls}>
           <TouchableOpacity
             style={styles.playerButton}
-            onPress={() => Alert.alert(
-              'لا يوجد بث بعد',
-              'سيُفعّل التشغيل عند إضافة رابط فيديو رسمي صالح.'
-            )}
+            onPress={playStream}
           >
             <Text style={styles.playerButtonText}>▶ تشغيل</Text>
           </TouchableOpacity>
