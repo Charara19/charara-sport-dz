@@ -52,6 +52,36 @@ const algerianChannels = [
   { name: 'القناة التاسعة TV9', subtitle: 'البرلمانية', icon: '🏛️', url: 'https://www.entv.dz/ar/tv9' },
 ];
 
+const beinChannels = [
+  ...Array.from({ length: 9 }, (_, i) => ({
+    name: `beIN SPORTS ${i + 1}`,
+    subtitle: 'القنوات الرياضية الرئيسية',
+    icon: '⚽',
+  })),
+  { name: 'beIN SPORTS NEWS', subtitle: 'الأخبار الرياضية', icon: '📰' },
+  { name: 'beIN SPORTS 4K', subtitle: 'البث بجودة فائقة حسب الباقة', icon: '📺' },
+  { name: 'beIN SPORTS NBA', subtitle: 'كرة السلة الأمريكية', icon: '🏀' },
+  { name: 'beIN SPORTS ENGLISH 1', subtitle: 'البث باللغة الإنجليزية', icon: '🇬🇧' },
+  { name: 'beIN SPORTS ENGLISH 2', subtitle: 'البث باللغة الإنجليزية', icon: '🇬🇧' },
+  { name: 'beIN SPORTS FRENCH 1', subtitle: 'البث باللغة الفرنسية', icon: '🇫🇷' },
+  { name: 'beIN SPORTS FRENCH 2', subtitle: 'البث باللغة الفرنسية', icon: '🇫🇷' },
+  ...Array.from({ length: 9 }, (_, i) => ({
+    name: `beIN SPORTS XTRA ${i + 1}`,
+    subtitle: 'قنوات رياضية إضافية حسب التوفر',
+    icon: '➕',
+  })),
+  ...Array.from({ length: 6 }, (_, i) => ({
+    name: `beIN SPORTS MAX ${i + 1}`,
+    subtitle: 'قنوات فعاليات ومباريات حسب التوفر',
+    icon: '🏆',
+  })),
+  ...Array.from({ length: 7 }, (_, i) => ({
+    name: i === 0 ? 'beIN SPORTS AFC' : `beIN SPORTS AFC ${i}`,
+    subtitle: 'قنوات مسابقات الاتحاد الآسيوي حسب التوفر',
+    icon: '🌏',
+  })),
+];
+
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
@@ -241,6 +271,33 @@ export default function App() {
           يدعم روابط الفيديو المباشرة مثل HLS عند توفر مصدر مرخّص.
         </Text>
       </View>
+
+      <View style={styles.noticeCard}>
+        <Text style={styles.noticeTitle}>📺 قنوات beIN SPORTS</Text>
+        <Text style={styles.noticeText}>
+          قائمة القنوات الرياضية. اضغط لفتح دليل beIN الرسمي والتحقق من البرامج والتوفر.
+        </Text>
+      </View>
+
+      {beinChannels.map((channel) => (
+        <View key={channel.name} style={styles.channelCard}>
+          <View style={styles.channelInfo}>
+            <Text style={styles.channelIcon}>{channel.icon}</Text>
+            <View style={styles.channelText}>
+              <Text style={styles.channelName}>{channel.name}</Text>
+              <Text style={styles.channelSubtitle}>{channel.subtitle}</Text>
+              <Text style={styles.channelStatus}>دليل beIN الرسمي</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.channelButton}
+            onPress={() => openPlatform('https://www.beinsports.com/en-mena/tv-guide')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.channelButtonText}>فتح دليل القنوات ←</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
 
       {algerianChannels.map((channel) => (
         <View key={channel.name} style={styles.channelCard}>
