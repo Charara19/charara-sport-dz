@@ -16,8 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.charara.sportdz"
     },
-    "android": {
+      "package": "com.charara.sportdz","android": {
       "package": "com.charara.sportdz",
+"permissions": ["android.permission.INTERNET"],
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

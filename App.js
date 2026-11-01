@@ -1,4 +1,5 @@
 
+import { WebView } from 'react-native-webview';
 import React, { useState, useRef } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import {
@@ -86,6 +87,8 @@ export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
   const [streamUrl, setStreamUrl] = useState('');
+  const [showSirTv, setShowSirTv] = useState(false);
+  const [sirTvReload, setSirTvReload] = useState(0);
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
 
@@ -210,7 +213,50 @@ export default function App() {
       </View>
 
       <SectionTitle title="مشغل شرارة الداخلي" />
+      <View style={styles.playerCard}>
+        <Text style={styles.sectionTitle}>
+          📺 مشاهدة المباراة عبر Siiir TV
+        </Text>
 
+        <TouchableOpacity
+          style={[styles.playerButton, { marginTop: 12 }]}
+          onPress={() => setShowSirTv(!showSirTv)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.playerButtonText}>
+            {showSirTv ? 'إخفاء المشغّل ▲' : '▶ فتح مشاهدة المباراة'}
+          </Text>
+        </TouchableOpacity>
+
+        {showSirTv && (
+          <>
+            <WebView
+              key={sirTvReload}
+              source={{
+                uri: 'https://912acsss8af382.sirtv.top/playerv5.php?match=4732643&key=9f39972b67d6ce22189507d008acwc26'
+              }}
+              style={{ height: 260, marginTop: 12, backgroundColor: '#000000' }}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsFullscreenVideo
+              mediaPlaybackRequiresUserAction={false}
+              onError={() => Alert.alert(
+                'تعذر تحميل المشغّل',
+                'تحقق من الإنترنت أو جرّب فتح الصفحة لاحقاً.'
+              )}
+            />
+
+            <TouchableOpacity
+              style={[styles.playerButton, { marginTop: 10 }]}
+              onPress={() => setSirTvReload(value => value + 1)}
+            >
+              <Text style={styles.playerButtonText}>
+                ↻ إعادة تحميل المشغّل
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
       <View style={styles.playerCard}>
         <View style={styles.playerScreen}>
           <VideoView
