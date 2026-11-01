@@ -1,6 +1,6 @@
 
 import { WebView } from 'react-native-webview';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   StatusBar,
@@ -86,6 +86,10 @@ const beinChannels = [
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
+  const [matches, setMatches] = useState([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+  const [matchesError, setMatchesError] = useState('');
+  const [matchDay, setMatchDay] = useState('today');
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -101,6 +105,36 @@ export default function App() {
   ];
 
   const categories = ['الكل', 'مباشر', 'اليوم', 'غداً'];
+
+  const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
+
+  const fetchMatches = async (day = 'today') => {
+    setMatchesLoading(true);
+    setMatchesError('');
+
+    try {
+      const response = await fetch(`${API_URL}?day=${day}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !Array.isArray(data.matches)) {
+        throw new Error('بيانات المباريات غير صالحة');
+      }
+
+      setMatches(data.matches);
+    } catch (error) {
+      setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
+    } finally {
+      setMatchesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMatches(matchDay);
+  }, [matchDay]);
 
   const playStream = () => {
     const url = streamUrl.trim();
@@ -390,6 +424,118 @@ export default function App() {
     </>
   );
 
+  const MatchesPage = () => (
+    <>
+      <View style={{ backgroundColor: PANEL, borderRadius: 16, padding: 15, marginBottom: 16, borderWidth: 1, borderColor: '#205735' }}>
+        <Text style={{ color: GREEN, fontSize: 20, fontWeight: '900', textAlign: 'right' }}>
+          ⚽ مباريات كرة القدم
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 6 }}>
+          النتائج والمواعيد من مصدر بيانات المباريات
+        </Text>
+      </View>
+
+      <View style={{ flexDirection: 'row-reverse', gap: 8, marginBottom: 15 }}>
+        {[
+          { label: 'الأمس', value: 'yesterday' },
+          { label: 'اليوم', value: 'today' },
+          { label: 'الغد', value: 'tomorrow' },
+        ].map(item => (
+          <TouchableOpacity
+            key={item.value}
+            onPress={() => setMatchDay(item.value)}
+            style={{
+              flex: 1,
+              padding: 11,
+              borderRadius: 10,
+              alignItems: 'center',
+              backgroundColor: matchDay === item.value ? GREEN : PANEL,
+              borderWidth: 1,
+              borderColor: matchDay === item.value ? GREEN : '#25352A',
+            }}
+          >
+            <Text style={{ color: matchDay === item.value ? BG : '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity
+        onPress={() => fetchMatches(matchDay)}
+        style={{ backgroundColor: '#153D27', padding: 11, borderRadius: 10, alignItems: 'center', marginBottom: 15 }}
+      >
+        <Text style={{ color: GREEN, fontWeight: '900' }}>↻ تحديث المباريات</Text>
+      </TouchableOpacity>
+
+      {matchesLoading ? (
+        <View style={styles.emptyCard}>
+          <Text style={{ color: GREEN, fontSize: 16, fontWeight: '800' }}>جارٍ تحميل المباريات...</Text>
+        </View>
+      ) : matchesError ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Text style={styles.emptyDesc}>{matchesError}</Text>
+          <TouchableOpacity onPress={() => fetchMatches(matchDay)} style={styles.heroButton}>
+            <Text style={styles.heroButtonText}>إعادة المحاولة</Text>
+          </TouchableOpacity>
+        </View>
+      ) : matches.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>⚽</Text>
+          <Text style={styles.emptyTitle}>لا توجد مباريات متاحة</Text>
+        </View>
+      ) : (
+        matches.map((match, index) => (
+          <View
+            key={`${match.url}-${index}`}
+            style={{
+              backgroundColor: PANEL,
+              borderRadius: 15,
+              padding: 14,
+              marginBottom: 11,
+              borderWidth: 1,
+              borderColor: '#24372B',
+            }}
+          >
+            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginBottom: 12 }}>
+              {match.status || 'موعد المباراة'}  •  {match.time || '--:--'}
+            </Text>
+
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'center', fontWeight: '900', fontSize: 13 }}>
+                {match.home}
+              </Text>
+              <View style={{ backgroundColor: '#07100A', paddingHorizontal: 13, paddingVertical: 9, borderRadius: 9 }}>
+                <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>
+                  {Array.isArray(match.score) && match.score.length >= 2
+                    ? `${match.score[0]} - ${match.score[1]}`
+                    : 'VS'}
+                </Text>
+              </View>
+              <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'center', fontWeight: '900', fontSize: 13 }}>
+                {match.away}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => match.url ? openPlatform(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
+            >
+              <Text style={{ color: GREEN, fontWeight: '900', fontSize: 12 }}>
+                تفاصيل المباراة ←
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+
+      <Text style={{ color: MUTED, fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 15 }}>
+        بيانات المباريات من Fabor TV. يفتح زر التفاصيل صفحة المباراة على موقع المصدر.
+      </Text>
+    </>
+  );
+
   const Home = () => (
     <>
       <View style={styles.hero}>
@@ -543,6 +689,8 @@ export default function App() {
           <Home />
         ) : tab === 'البث المباشر' ? (
           <BroadcastPage />
+        ) : tab === 'المباريات' ? (
+          <MatchesPage />
         ) : (
           <OtherPage />
         )}
