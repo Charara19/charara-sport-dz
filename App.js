@@ -710,6 +710,8 @@ export default function App() {
               javaScriptEnabled={true}
               domStorageEnabled={true}
               allowsFullscreenVideo={true}
+              setSupportMultipleWindows={false}
+              javaScriptCanOpenWindowsAutomatically={false}
               startInLoadingState={true}
               style={{ flex: 1, backgroundColor: BG }}
             />
