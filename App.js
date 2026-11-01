@@ -93,6 +93,7 @@ export default function App() {
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
+  const [internalMatchUrl, setInternalMatchUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
 
@@ -154,6 +155,14 @@ export default function App() {
     } catch (error) {
       Alert.alert('تعذر التشغيل', 'تحقق من الرابط وحاول مرة أخرى.');
     }
+  };
+
+  const openMatchInsideApp = (url) => {
+    if (!url || !/^https?:\/\//i.test(url)) {
+      Alert.alert('تنبيه', 'رابط المباراة غير صالح.');
+      return;
+    }
+    setInternalMatchUrl(url);
   };
 
   const openPlatform = async (url) => {
@@ -519,11 +528,11 @@ export default function App() {
             </View>
 
             <TouchableOpacity
-              onPress={() => match.url ? openPlatform(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
             >
               <Text style={{ color: GREEN, fontWeight: '900', fontSize: 12 }}>
-                تفاصيل المباراة ←
+                ▶ مشاهدة داخل التطبيق
               </Text>
             </TouchableOpacity>
           </View>
@@ -685,7 +694,27 @@ export default function App() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {tab === 'الرئيسية' ? (
+        {internalMatchUrl ? (
+          <View style={{ height: 650, backgroundColor: PANEL, borderRadius: 14, overflow: 'hidden', marginBottom: 15 }}>
+            <TouchableOpacity
+              onPress={() => setInternalMatchUrl('')}
+              style={{ backgroundColor: '#153D27', padding: 14, alignItems: 'center' }}
+            >
+              <Text style={{ color: GREEN, fontWeight: '900' }}>
+                ← العودة إلى المباريات
+              </Text>
+            </TouchableOpacity>
+
+            <WebView
+              source={{ uri: internalMatchUrl }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              allowsFullscreenVideo={true}
+              startInLoadingState={true}
+              style={{ flex: 1, backgroundColor: BG }}
+            />
+          </View>
+        ) : tab === 'الرئيسية' ? (
           <Home />
         ) : tab === 'البث المباشر' ? (
           <BroadcastPage />
