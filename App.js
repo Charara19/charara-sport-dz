@@ -752,28 +752,113 @@ export default function App() {
   );
 
   const OtherPage = () => {
-    let title = tab;
-    let description = '';
-    let icon = '👤';
+    const [selectedLeague, setSelectedLeague] = useState('دوري أبطال أوروبا');
 
-    if (tab === 'المباريات') {
-      description =
-        'ستظهر هنا المباريات القادمة والنتائج المباشرة بعد ربط مصدر البيانات.';
-      icon = '⚽';
-    } else if (tab === 'البطولات') {
-      description =
-        'تابع أشهر البطولات والدوريات من مختلف أنحاء العالم.';
-      icon = '🏆';
-    } else {
-      description =
-        'قريباً: حسابك الشخصي وعضوية شرارة Premium.';
+    const leagues = [
+      { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
+      { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
+      { name: 'الدوري الإسباني', country: 'إسبانيا', icon: '🇪🇸', color: '#F87171' },
+      { name: 'الدوري الألماني', country: 'ألمانيا', icon: '🇩🇪', color: '#FBBF24' },
+      { name: 'الدوري الإيطالي', country: 'إيطاليا', icon: '🇮🇹', color: '#60A5FA' },
+      { name: 'الدوري الفرنسي', country: 'فرنسا', icon: '🇫🇷', color: '#818CF8' },
+      { name: 'الدوري الجزائري', country: 'الجزائر', icon: '🇩🇿', color: '#34D399' },
+    ];
+
+    if (tab === 'البطولات') {
+      return (
+        <View style={{ gap: 18, paddingBottom: 20 }}>
+          <View style={{
+            backgroundColor: '#101A14',
+            borderWidth: 1,
+            borderColor: '#245235',
+            borderRadius: 22,
+            padding: 20,
+          }}>
+            <Text style={{ color: GREEN, fontSize: 13, fontWeight: 'bold', textAlign: 'right' }}>
+              CHARARA SPORT • LEAGUES
+            </Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: 'bold', textAlign: 'right', marginTop: 10 }}>
+              عالم البطولات
+            </Text>
+            <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 7, lineHeight: 22 }}>
+              اختر البطولة لمتابعة معلوماتها والترتيب عند توفر البيانات الرسمية.
+            </Text>
+          </View>
+
+          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' }}>
+            البطولات المتاحة
+          </Text>
+
+          {leagues.map((league) => {
+            const active = selectedLeague === league.name;
+            return (
+              <TouchableOpacity
+                key={league.name}
+                onPress={() => setSelectedLeague(league.name)}
+                activeOpacity={0.8}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: active ? '#14251A' : '#101713',
+                  borderWidth: 1,
+                  borderColor: active ? GREEN : '#203329',
+                  borderRadius: 16,
+                  padding: 16,
+                }}
+              >
+                <Text style={{ color: GREEN, fontSize: 20 }}>‹</Text>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 'bold' }}>
+                    {league.name}
+                  </Text>
+                  <Text style={{ color: MUTED, fontSize: 12, marginTop: 5 }}>
+                    {league.country}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 27, marginLeft: 13 }}>{league.icon}</Text>
+              </TouchableOpacity>
+            );
+          })}
+
+          <View style={{
+            backgroundColor: '#101A14',
+            borderWidth: 1,
+            borderColor: '#245235',
+            borderRadius: 20,
+            padding: 18,
+            marginTop: 4,
+          }}>
+            <Text style={{ color: GREEN, fontSize: 12, fontWeight: 'bold', textAlign: 'right' }}>
+              البطولة المختارة
+            </Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 9 }}>
+              {selectedLeague}
+            </Text>
+            <View style={{
+              backgroundColor: '#19251E',
+              borderRadius: 12,
+              padding: 14,
+              marginTop: 15,
+            }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right' }}>
+                جدول الترتيب
+              </Text>
+              <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 8, lineHeight: 22 }}>
+                بيانات الترتيب غير متاحة حالياً. سنعرض الترتيب الحقيقي بعد نجاح الاتصال بمصدر البيانات الرسمي.
+              </Text>
+            </View>
+          </View>
+        </View>
+      );
     }
 
     return (
       <View style={styles.pageCard}>
-        <Text style={styles.pageIcon}>{icon}</Text>
-        <Text style={styles.pageTitle}>{title}</Text>
-        <Text style={styles.pageDesc}>{description}</Text>
+        <Text style={styles.pageIcon}>👤</Text>
+        <Text style={styles.pageTitle}>حسابي</Text>
+        <Text style={styles.pageDesc}>
+          قريباً: حسابك الشخصي وعضوية شرارة Premium.
+        </Text>
         <Text style={styles.coming}>قريباً بإذن الله</Text>
       </View>
     );
