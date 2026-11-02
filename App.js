@@ -90,6 +90,7 @@ export default function App() {
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState('');
   const [matchDay, setMatchDay] = useState('today');
+  const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -470,6 +471,27 @@ export default function App() {
         ))}
       </View>
 
+      <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginBottom: 15 }}>
+        {['الكل', ...new Set(matches.map(match => match.league || 'غير محدد'))].map(league => (
+          <TouchableOpacity
+            key={league}
+            onPress={() => setSelectedLeagueFilter(league)}
+            style={{
+              backgroundColor: selectedLeagueFilter === league ? GREEN : PANEL,
+              borderColor: selectedLeagueFilter === league ? GREEN : '#25352A',
+              borderWidth: 1,
+              borderRadius: 20,
+              paddingVertical: 8,
+              paddingHorizontal: 13,
+            }}
+          >
+            <Text style={{ color: selectedLeagueFilter === league ? BG : '#FFFFFF', fontWeight: '800', fontSize: 11 }}>
+              {league}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <TouchableOpacity
         onPress={() => fetchMatches(matchDay)}
         style={{ backgroundColor: '#153D27', padding: 11, borderRadius: 10, alignItems: 'center', marginBottom: 15 }}
@@ -495,7 +517,10 @@ export default function App() {
           <Text style={styles.emptyTitle}>لا توجد مباريات متاحة</Text>
         </View>
       ) : (
-        matches.map((match, index) => (
+        matches.filter(match =>
+          selectedLeagueFilter === 'الكل' ||
+          (match.league || 'غير محدد') === selectedLeagueFilter
+        ).map((match, index) => (
           <View
             key={`${match.url}-${index}`}
             style={{
