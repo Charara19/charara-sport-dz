@@ -592,16 +592,112 @@ export default function App() {
         ))}
       </View>
 
-      <View style={styles.emptyCard}>
-        <Text style={styles.emptyIcon}>⚽</Text>
-        <Text style={styles.emptyTitle}>
-          لا توجد بيانات مباريات حالياً
+      {matchesLoading ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>⚽</Text>
+          <Text style={styles.emptyTitle}>جارٍ تحميل المباريات...</Text>
+        </View>
+      ) : matchesError ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Text style={styles.emptyDesc}>{matchesError}</Text>
+          <TouchableOpacity
+            style={styles.heroButton}
+            onPress={() => fetchMatches(matchDay)}
+          >
+            <Text style={styles.heroButtonText}>إعادة المحاولة</Text>
+          </TouchableOpacity>
+        </View>
+      ) : matches.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyIcon}>⚽</Text>
+          <Text style={styles.emptyTitle}>لا توجد مباريات متاحة حالياً</Text>
+        </View>
+      ) : (
+        matches.slice(0, 3).map((match, index) => (
+          <TouchableOpacity
+            key={`${match.url}-home-${index}`}
+            activeOpacity={0.85}
+            onPress={() => setTab('المباريات')}
+            style={{
+              backgroundColor: '#101812',
+              borderRadius: 18,
+              padding: 15,
+              marginBottom: 11,
+              borderWidth: 1,
+              borderColor: '#245235',
+            }}
+          >
+            <Text style={{
+              color: GREEN,
+              textAlign: 'center',
+              fontSize: 11,
+              fontWeight: '800',
+              marginBottom: 13,
+            }}>
+              {match.status || 'موعد المباراة'} • {match.time || '--:--'}
+            </Text>
+            <View style={{
+              flexDirection: 'row-reverse',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Text style={{
+                color: '#FFFFFF',
+                flex: 1,
+                textAlign: 'center',
+                fontWeight: '900',
+                fontSize: 12,
+              }}>{match.home}</Text>
+              <View style={{
+                backgroundColor: '#07100A',
+                paddingHorizontal: 13,
+                paddingVertical: 9,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#245235',
+              }}>
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 16,
+                  fontWeight: '900',
+                }}>
+                  {Array.isArray(match.score) && match.score.length >= 2
+                    ? `${match.score[0]} - ${match.score[1]}`
+                    : 'VS'}
+                </Text>
+              </View>
+              <Text style={{
+                color: '#FFFFFF',
+                flex: 1,
+                textAlign: 'center',
+                fontWeight: '900',
+                fontSize: 12,
+              }}>{match.away}</Text>
+            </View>
+            <Text style={{
+              color: MUTED,
+              textAlign: 'center',
+              fontSize: 10,
+              marginTop: 12,
+            }}>اضغط لعرض تفاصيل المباراة ←</Text>
+          </TouchableOpacity>
+        ))
+      )}
+      <TouchableOpacity
+        onPress={() => setTab('المباريات')}
+        style={{
+          backgroundColor: '#153D27',
+          borderRadius: 13,
+          padding: 13,
+          alignItems: 'center',
+          marginBottom: 25,
+        }}
+      >
+        <Text style={{ color: GREEN, fontWeight: '900' }}>
+          عرض جميع المباريات ←
         </Text>
-        <Text style={styles.emptyDesc}>
-          سيتم عرض المباريات والنتائج الحقيقية هنا
-          بعد ربط التطبيق بمصدر بيانات رياضي.
-        </Text>
-      </View>
+      </TouchableOpacity>
 
       <SectionTitle title="البث المباشر" action="شاهد المنصات" />
 
@@ -780,13 +876,14 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
   header: {
-    height: 76,
+    height: 82,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#090E0B',
     borderBottomWidth: 1,
-    borderBottomColor: '#1B2920',
+    borderBottomColor: '#183A27',
   },
   brand: {
     color: '#FFFFFF',
@@ -820,12 +917,17 @@ const styles = StyleSheet.create({
     paddingBottom: 25,
   },
   hero: {
-    backgroundColor: '#10271A',
-    borderRadius: 22,
-    padding: 22,
+    backgroundColor: '#10251A',
+    borderRadius: 26,
+    padding: 24,
     marginBottom: 27,
     borderWidth: 1,
-    borderColor: '#205735',
+    borderColor: '#267A46',
+    shadowColor: '#00E676',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 5,
   },
   heroSmall: {
     color: GREEN,
@@ -880,12 +982,12 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   category: {
-    backgroundColor: PANEL,
-    paddingVertical: 9,
-    paddingHorizontal: 17,
-    borderRadius: 20,
+    backgroundColor: '#111A15',
+    paddingVertical: 11,
+    paddingHorizontal: 19,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#25352A',
+    borderColor: '#294535',
   },
   categoryActive: {
     backgroundColor: GREEN,
@@ -897,13 +999,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   emptyCard: {
-    backgroundColor: PANEL,
-    borderRadius: 18,
-    padding: 23,
+    backgroundColor: '#101812',
+    borderRadius: 22,
+    padding: 25,
     alignItems: 'center',
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: '#24372B',
+    borderColor: '#294535',
   },
   emptyIcon: {
     fontSize: 37,
@@ -929,11 +1031,11 @@ const styles = StyleSheet.create({
   league: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    backgroundColor: PANEL,
-    padding: 15,
-    borderRadius: 13,
+    backgroundColor: '#111A15',
+    padding: 17,
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#203128',
+    borderColor: '#294535',
   },
   leagueIcon: {
     fontSize: 22,
@@ -970,12 +1072,12 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
   playerCard: {
-    backgroundColor: PANEL,
-    borderRadius: 18,
-    padding: 14,
+    backgroundColor: '#101812',
+    borderRadius: 22,
+    padding: 15,
     marginBottom: 22,
     borderWidth: 1,
-    borderColor: '#205735',
+    borderColor: '#267A46',
   },
   playerScreen: {
     height: 190,
@@ -1039,13 +1141,13 @@ const styles = StyleSheet.create({
   },
 
   broadcastHero: {
-    backgroundColor: '#10271A',
-    borderRadius: 22,
-    padding: 23,
+    backgroundColor: '#10251A',
+    borderRadius: 26,
+    padding: 25,
     alignItems: 'center',
     marginBottom: 25,
     borderWidth: 1,
-    borderColor: '#205735',
+    borderColor: '#267A46',
   },
   broadcastHeroIcon: {
     fontSize: 48,
@@ -1241,13 +1343,14 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   bottomNav: {
-    height: 70,
-    backgroundColor: '#101713',
+    height: 76,
+    backgroundColor: '#0B110D',
     borderTopWidth: 1,
-    borderTopColor: '#24372B',
+    borderTopColor: '#245235',
     flexDirection: 'row-reverse',
     justifyContent: 'space-around',
     alignItems: 'center',
+    paddingBottom: 4,
   },
   navItem: {
     alignItems: 'center',
