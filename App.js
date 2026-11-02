@@ -92,6 +92,7 @@ export default function App() {
   const [matchesError, setMatchesError] = useState('');
   const [matchDay, setMatchDay] = useState('today');
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
+  const [selectedMatch, setSelectedMatch] = useState(null);
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -556,6 +557,15 @@ export default function App() {
             </View>
 
             <TouchableOpacity
+              onPress={() => setSelectedMatch(match)}
+              style={{ backgroundColor: '#25352A', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 12 }}>
+                تفاصيل المباراة
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               onPress={() => match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
             >
@@ -918,6 +928,55 @@ export default function App() {
               startInLoadingState={true}
               style={{ flex: 1, backgroundColor: BG }}
             />
+          </View>
+        ) : selectedMatch ? (
+          <View style={{ backgroundColor: PANEL, borderRadius: 16, padding: 18, marginBottom: 15, borderWidth: 1, borderColor: '#245235' }}>
+            <Text style={{ color: GREEN, fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 18 }}>
+              تفاصيل المباراة
+            </Text>
+
+            <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 8 }}>
+              {selectedMatch.league || 'بطولة غير محددة'}
+            </Text>
+            <Text style={{ color: GREEN, textAlign: 'center', fontWeight: '800', marginBottom: 20 }}>
+              {selectedMatch.status || 'موعد المباراة'} • {selectedMatch.time || '--:--'}
+            </Text>
+
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-around' }}>
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                {selectedMatch.homeLogo ? <Image source={{ uri: selectedMatch.homeLogo }} style={{ width: 65, height: 65, resizeMode: 'contain', marginBottom: 8 }} /> : null}
+                <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
+                  {selectedMatch.home || 'الفريق الأول'}
+                </Text>
+              </View>
+
+              <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', marginHorizontal: 10 }}>
+                {Array.isArray(selectedMatch.score) && selectedMatch.score.length >= 2
+                  ? `${selectedMatch.score[0]} - ${selectedMatch.score[1]}`
+                  : 'VS'}
+              </Text>
+
+              <View style={{ flex: 1, alignItems: 'center' }}>
+                {selectedMatch.awayLogo ? <Image source={{ uri: selectedMatch.awayLogo }} style={{ width: 65, height: 65, resizeMode: 'contain', marginBottom: 8 }} /> : null}
+                <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
+                  {selectedMatch.away || 'الفريق الثاني'}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setSelectedMatch(null)}
+              style={{ backgroundColor: '#25352A', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 22 }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>← العودة إلى المباريات</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              style={{ backgroundColor: '#153D27', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 10 }}
+            >
+              <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة داخل التطبيق</Text>
+            </TouchableOpacity>
           </View>
         ) : tab === 'الرئيسية' ? (
           <Home />
