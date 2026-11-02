@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Linking,
+  Image,
   Alert,
 } from 'react-native';
 
@@ -537,9 +538,10 @@ export default function App() {
             </Text>
 
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'center', fontWeight: '900', fontSize: 13 }}>
-                {match.home}
-              </Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} /> : null}
+                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
+              </View>
               <View style={{ backgroundColor: '#07100A', paddingHorizontal: 13, paddingVertical: 9, borderRadius: 9 }}>
                 <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>
                   {Array.isArray(match.score) && match.score.length >= 2
@@ -547,9 +549,10 @@ export default function App() {
                     : 'VS'}
                 </Text>
               </View>
-              <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'center', fontWeight: '900', fontSize: 13 }}>
-                {match.away}
-              </Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} /> : null}
+                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -667,13 +670,10 @@ export default function App() {
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <Text style={{
-                color: '#FFFFFF',
-                flex: 1,
-                textAlign: 'center',
-                fontWeight: '900',
-                fontSize: 12,
-              }}>{match.home}</Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} /> : null}
+                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
+              </View>
               <View style={{
                 backgroundColor: '#07100A',
                 paddingHorizontal: 13,
@@ -692,13 +692,10 @@ export default function App() {
                     : 'VS'}
                 </Text>
               </View>
-              <Text style={{
-                color: '#FFFFFF',
-                flex: 1,
-                textAlign: 'center',
-                fontWeight: '900',
-                fontSize: 12,
-              }}>{match.away}</Text>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} /> : null}
+                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
+              </View>
             </View>
             <Text style={{
               color: MUTED,
