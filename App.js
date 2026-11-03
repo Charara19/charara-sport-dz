@@ -161,6 +161,20 @@ export default function App() {
     fetchMatches(matchDay);
   }, [matchDay]);
 
+  useEffect(() => {
+    const hasLiveMatch = matches.some(match =>
+      /مباشر|live|1h|2h|ht|et|pen/i.test(String(match.status || ''))
+    );
+
+    if (!hasLiveMatch) return;
+
+    const timer = setInterval(() => {
+      fetchMatches(matchDay);
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [matches, matchDay]);
+
   const playStream = () => {
     const url = streamUrl.trim();
 
