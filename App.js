@@ -93,6 +93,10 @@ export default function App() {
   const [matchDay, setMatchDay] = useState('today');
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [matchStats, setMatchStats] = useState([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState('');
+  const [fixtureStatus, setFixtureStatus] = useState('');
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -111,6 +115,23 @@ export default function App() {
   const categories = ['الكل', 'مباشر', 'اليوم', 'غداً'];
 
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
+  const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
+
+  const findMatchingFixture = async (home, away, date) => {
+    try {
+      const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const fixtures = data.data?.response || [];
+      const normalize = value => String(value || '').trim().toLowerCase();
+      return fixtures.find(item =>
+        normalize(item.teams?.home?.name) === normalize(home) &&
+        normalize(item.teams?.away?.name) === normalize(away)
+      ) || null;
+    } catch (error) {
+      return null;
+    }
+  };
 
   const fetchMatches = async (day = 'today') => {
     setMatchesLoading(true);
@@ -964,7 +985,13 @@ export default function App() {
               </View>
             </View>
 
-            <TouchableOpacity
+            <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
+  <Text style={{ color: MUTED, textAlign: 'center', fontWeight: '700' }}>
+    الإحصائيات غير متاحة حاليًا لهذه المباراة
+  </Text>
+</View>
+
+<TouchableOpacity
               onPress={() => setSelectedMatch(null)}
               style={{ backgroundColor: '#25352A', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 22 }}
             >
