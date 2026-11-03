@@ -171,7 +171,7 @@ export default function App() {
 
         if (mounted) setPushStatus('تم تسجيل الإشعارات على الجهاز');
       } catch (error) {
-        if (mounted) setPushStatus('تعذر تسجيل الإشعارات');
+        if (mounted) setPushStatus('خطأ: ' + (error?.message || String(error)));
         console.log('Push registration error:', error);
       }
     };
