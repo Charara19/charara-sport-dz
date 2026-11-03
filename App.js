@@ -123,10 +123,18 @@ export default function App() {
       if (!response.ok) return null;
       const data = await response.json();
       const fixtures = data.data?.response || [];
-      const normalize = value => String(value || '').trim().toLowerCase();
+      const aliases = {
+        'غلطة سراي': 'galatasaray',
+        'شتوتجارت': 'vfb stuttgart',
+      };
+      const normalize = value => {
+        const name = String(value || '').trim().toLowerCase();
+        return aliases[String(value || '').trim()] || name;
+      };
       return fixtures.find(item =>
         normalize(item.teams?.home?.name) === normalize(home) &&
-        normalize(item.teams?.away?.name) === normalize(away)
+        normalize(item.teams?.away?.name) === normalize(away) &&
+        !/u19|u-19|youth/i.test(item.league?.name || '')
       ) || null;
     } catch (error) {
       return null;
@@ -170,6 +178,56 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, [tab, matchDay]);
+
+  const fetchMatchStats = async (match) => {
+    if (!match?.url) return;
+
+    const date = match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+    if (!date) return;
+
+    setStatsLoading(true);
+    setStatsError('');
+    setMatchStats([]);
+
+    try {
+      const fixture = await findMatchingFixture(match.home, match.away, date);
+
+      if (!fixture?.fixture?.id) {
+        setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
+        return;
+      }
+
+      setFixtureStatus(fixture.fixture.status?.short || '');
+
+      const response = await fetch(
+        `${STATS_API_URL}fixtures/statistics?fixture=${fixture.fixture.id}`
+      );
+      if (!response.ok) throw new Error('تعذر تحميل الإحصائيات');
+
+      const data = await response.json();
+      const statistics = data.data?.response || [];
+
+      if (statistics.length !== 2) {
+        setStatsError('الإحصائيات ستظهر عند انطلاق المباراة.');
+        return;
+      }
+
+      setMatchStats(statistics);
+    } catch (error) {
+      setStatsError('تعذر تحميل إحصائيات المباراة حاليًا.');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedMatch) fetchMatchStats(selectedMatch);
+    else {
+      setMatchStats([]);
+      setStatsError('');
+      setFixtureStatus('');
+    }
+  }, [selectedMatch]);
 
   const playStream = () => {
     const url = streamUrl.trim();
@@ -996,10 +1054,33 @@ export default function App() {
             </View>
 
             <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
-  <Text style={{ color: MUTED, textAlign: 'center', fontWeight: '700' }}>
-    الإحصائيات غير متاحة حاليًا لهذه المباراة
-  </Text>
-</View>
+              <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+                إحصائيات المباراة
+              </Text>
+              {statsLoading ? (
+                <Text style={{ color: MUTED, textAlign: 'center' }}>جارٍ تحميل الإحصائيات...</Text>
+              ) : matchStats.length === 2 ? (
+                matchStats[0].statistics.map((stat, index) => {
+                  const other = matchStats[1].statistics.find(item => item.type === stat.type);
+                  const value1 = stat.value ?? '--';
+                  const value2 = other?.value ?? '--';
+                  return (
+                    <View key={stat.type || index} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '700' }}>{stat.type}</Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+                        <Text style={{ color: GREEN, fontWeight: '900' }}>{String(value1)}</Text>
+                        <Text style={{ color: '#FFFFFF' }}>—</Text>
+                        <Text style={{ color: GREEN, fontWeight: '900' }}>{String(value2)}</Text>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <Text style={{ color: MUTED, textAlign: 'center', fontWeight: '700' }}>
+                  {statsError || 'الإحصائيات غير متاحة حاليًا لهذه المباراة'}
+                </Text>
+              )}
+            </View>
 
 <TouchableOpacity
               onPress={() => setSelectedMatch(null)}
