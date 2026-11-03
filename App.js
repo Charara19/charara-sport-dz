@@ -162,18 +162,14 @@ export default function App() {
   }, [matchDay]);
 
   useEffect(() => {
-    const hasLiveMatch = matches.some(match =>
-      /مباشر|live|1h|2h|ht|et|pen/i.test(String(match.status || ''))
-    );
-
-    if (!hasLiveMatch) return;
+    if (tab !== 'المباريات') return;
 
     const timer = setInterval(() => {
       fetchMatches(matchDay);
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [matches, matchDay]);
+  }, [tab, matchDay]);
 
   const playStream = () => {
     const url = streamUrl.trim();
