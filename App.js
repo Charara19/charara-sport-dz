@@ -16,6 +16,8 @@ import {
   Alert,
 } from 'react-native';
 
+import * as Speech from 'expo-speech';
+
 const GREEN = '#00E676';
 const BG = '#070B09';
 const PANEL = '#111A15';
@@ -98,12 +100,25 @@ export default function App() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
   const [fixtureStatus, setFixtureStatus] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const previousEventsRef = useRef({});
+  const currentFixtureIdRef = useRef(null);
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
   const [internalMatchUrl, setInternalMatchUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
+
+  const speakMatchAlert = (message) => {
+    if (!soundEnabled) return;
+    Speech.stop();
+    Speech.speak(message, {
+      language: 'ar',
+      rate: 0.95,
+      pitch: 1.0,
+    });
+  };
 
   const tabs = [
     'الرئيسية',
@@ -198,6 +213,7 @@ export default function App() {
         return;
       }
 
+      currentFixtureIdRef.current = fixture.fixture.id;
       setFixtureStatus(fixture.fixture.status?.short || '');
 
       const eventsResponse = await fetch(
@@ -205,7 +221,29 @@ export default function App() {
       );
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
-        setMatchEvents(eventsData.data?.response || []);
+        const incomingEvents = eventsData.data?.response || [];
+        const fixtureId = String(fixture.fixture.id);
+        const eventKey = event => [
+          event.time?.elapsed, event.time?.extra, event.team?.id,
+          event.type, event.detail, event.player?.id
+        ].join('|');
+        const previousKeys = previousEventsRef.current[fixtureId];
+
+        if (previousKeys) {
+          incomingEvents.forEach(event => {
+            if (previousKeys.has(eventKey(event))) return;
+            const type = String(event.type || '');
+            const detail = String(event.detail || '');
+            if (/goal/i.test(type)) {
+              speakMatchAlert('هدف! تم تسجيل هدف');
+            } else if (/card/i.test(type) && /red/i.test(detail)) {
+              speakMatchAlert('بطاقة حمراء!');
+            }
+          });
+        }
+
+        previousEventsRef.current[fixtureId] = new Set(incomingEvents.map(eventKey));
+        setMatchEvents(incomingEvents);
       } else {
         setMatchEvents([]);
       }
@@ -240,6 +278,52 @@ export default function App() {
       setFixtureStatus('');
     }
   }, [selectedMatch]);
+
+  useEffect(() => {
+    if (!selectedMatch) {
+      currentFixtureIdRef.current = null;
+      return;
+    }
+
+    const timer = setInterval(async () => {
+      const fixtureId = currentFixtureIdRef.current;
+      if (!fixtureId) return;
+
+      try {
+        const response = await fetch(
+          `${STATS_API_URL}fixtures/events?fixture=${fixtureId}`
+        );
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const incomingEvents = data.data?.response || [];
+        const id = String(fixtureId);
+        const eventKey = event => [
+          event.time?.elapsed, event.time?.extra, event.team?.id,
+          event.type, event.detail, event.player?.id
+        ].join('|');
+        const previousKeys = previousEventsRef.current[id] || new Set();
+
+        incomingEvents.forEach(event => {
+          if (previousKeys.has(eventKey(event))) return;
+          const type = String(event.type || '');
+          const detail = String(event.detail || '');
+          if (/goal/i.test(type)) {
+            speakMatchAlert('هدف! تم تسجيل هدف');
+          } else if (/card/i.test(type) && /red/i.test(detail)) {
+            speakMatchAlert('بطاقة حمراء!');
+          }
+        });
+
+        previousEventsRef.current[id] = new Set(incomingEvents.map(eventKey));
+        setMatchEvents(incomingEvents);
+      } catch (error) {
+        // تجاهل أخطاء التحديث المؤقتة
+      }
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [selectedMatch, soundEnabled]);
 
   const playStream = () => {
     const url = streamUrl.trim();
@@ -993,6 +1077,14 @@ export default function App() {
           قريباً: حسابك الشخصي وعضوية شرارة Premium.
         </Text>
         <Text style={styles.coming}>قريباً بإذن الله</Text>
+                <TouchableOpacity
+                  onPress={() => setSoundEnabled(v => !v)}
+                  style={{ backgroundColor: '#153D27', padding: 15, borderRadius: 12, marginTop: 18, alignItems: 'center' }}
+                >
+                  <Text style={{ color: GREEN, fontWeight: '900' }}>
+                    {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
+                  </Text>
+                </TouchableOpacity>
       </View>
     );
   };
