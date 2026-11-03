@@ -16,9 +16,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.charara.sportdz"
     },
-      "package": "com.charara.sportdz","android": {
+    "package": "com.charara.sportdz",
+    "android": {
       "package": "com.charara.sportdz",
-"permissions": ["android.permission.INTERNET"],
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -30,7 +33,21 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-video"
-    ]
+      "expo-video",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#00E676",
+          "defaultChannel": "match-alerts"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f9afd787-415a-4e87-a5a0-6b69368b741f"
+      }
+    },
+    "owner": "charara.dz18"
   }
 }

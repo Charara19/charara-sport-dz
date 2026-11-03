@@ -39,3 +39,13 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase private configuration
+google-services.json
+*service-account*.json
+*firebase-adminsdk*.json
+
+# Local backups and temporary files
+*.backup
+*.before-*.backup
+*.stream-backup

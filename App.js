@@ -17,6 +17,18 @@ import {
 } from 'react-native';
 
 import * as Speech from 'expo-speech';
+import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 const GREEN = '#00E676';
 const BG = '#070B09';
@@ -101,6 +113,7 @@ export default function App() {
   const [statsError, setStatsError] = useState('');
   const [fixtureStatus, setFixtureStatus] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [pushStatus, setPushStatus] = useState('لم يتم التسجيل بعد');
   const previousEventsRef = useRef({});
   const currentFixtureIdRef = useRef(null);
   const [streamUrl, setStreamUrl] = useState('');
@@ -109,6 +122,66 @@ export default function App() {
   const [internalMatchUrl, setInternalMatchUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
+
+
+  useEffect(() => {
+    let mounted = true;
+
+    const registerForPushNotifications = async () => {
+      try {
+        await Notifications.setNotificationChannelAsync('match-alerts', {
+          name: 'تنبيهات المباريات',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#00E676',
+        });
+
+        let permission = await Notifications.getPermissionsAsync();
+
+        if (!permission.granted) {
+          permission = await Notifications.requestPermissionsAsync();
+        }
+
+        if (!permission.granted) {
+          if (mounted) setPushStatus('إذن الإشعارات غير ممنوح');
+          return;
+        }
+
+        const projectId =
+          Constants.easConfig?.projectId ||
+          Constants.expoConfig?.extra?.eas?.projectId;
+
+        if (!projectId) {
+          if (mounted) setPushStatus('معرّف المشروع غير متوفر');
+          return;
+        }
+
+        const savedToken = await AsyncStorage.getItem('expoPushToken');
+
+        if (savedToken) {
+          if (mounted) setPushStatus('تم تسجيل الإشعارات على الجهاز');
+          return;
+        }
+
+        const tokenResult = await Notifications.getExpoPushTokenAsync({
+          projectId,
+        });
+
+        await AsyncStorage.setItem('expoPushToken', tokenResult.data);
+
+        if (mounted) setPushStatus('تم تسجيل الإشعارات على الجهاز');
+      } catch (error) {
+        if (mounted) setPushStatus('تعذر تسجيل الإشعارات');
+        console.log('Push registration error:', error);
+      }
+    };
+
+    registerForPushNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const speakMatchAlert = (message) => {
     if (!soundEnabled) return;
@@ -1085,6 +1158,15 @@ export default function App() {
                     {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
                   </Text>
                 </TouchableOpacity>
+        <Text style={{ color: GREEN, fontSize: 14, textAlign: 'center', marginTop: 18, fontWeight: 'bold' }}>
+          🔔 حالة الإشعارات
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+          {pushStatus}
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 6 }}>
+          الإشعارات التلقائية للأهداف تحتاج ربط خادم الإرسال.
+        </Text>
       </View>
     );
   };
