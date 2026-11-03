@@ -94,6 +94,7 @@ export default function App() {
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [matchStats, setMatchStats] = useState([]);
+  const [matchEvents, setMatchEvents] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
   const [fixtureStatus, setFixtureStatus] = useState('');
@@ -199,6 +200,16 @@ export default function App() {
 
       setFixtureStatus(fixture.fixture.status?.short || '');
 
+      const eventsResponse = await fetch(
+        `${STATS_API_URL}fixtures/events?fixture=${fixture.fixture.id}`
+      );
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        setMatchEvents(eventsData.data?.response || []);
+      } else {
+        setMatchEvents([]);
+      }
+
       const response = await fetch(
         `${STATS_API_URL}fixtures/statistics?fixture=${fixture.fixture.id}`
       );
@@ -224,6 +235,7 @@ export default function App() {
     if (selectedMatch) fetchMatchStats(selectedMatch);
     else {
       setMatchStats([]);
+      setMatchEvents([]);
       setStatsError('');
       setFixtureStatus('');
     }
@@ -1081,6 +1093,22 @@ export default function App() {
                 </Text>
               )}
             </View>
+
+<View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 12, marginBottom: 8 }}>
+  <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>أحداث المباراة</Text>
+  {matchEvents.length > 0 ? matchEvents.map((event, index) => {
+    const type = String(event.type || '');
+    const detail = String(event.detail || '');
+    const symbol = /goal/i.test(type) ? '⚽' : /card/i.test(type) ? (/red/i.test(detail) ? '🟥' : '🟨') : /subst/i.test(type) ? '🔄' : '•';
+    return (
+      <View key={index} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+        <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center' }}>{event.time?.elapsed ?? '--'}' {symbol} {type} {detail}</Text>
+        <Text style={{ color: '#FFFFFF', textAlign: 'center', marginTop: 4 }}>{event.team?.name || ''}</Text>
+        <Text style={{ color: MUTED, textAlign: 'center', marginTop: 3 }}>{event.player?.name || ''}{event.assist?.name ? ' ← ' + event.assist.name : ''}</Text>
+      </View>
+    );
+  }) : <Text style={{ color: MUTED, textAlign: 'center' }}>لا توجد أحداث مسجلة لهذه المباراة حتى الآن.</Text>}
+</View>
 
 <TouchableOpacity
               onPress={() => setSelectedMatch(null)}
