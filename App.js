@@ -820,7 +820,7 @@ export default function App() {
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
               </View>
               <View style={{ backgroundColor: '#07100A', paddingHorizontal: 13, paddingVertical: 9, borderRadius: 9 }}>
-                <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>
+                <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', writingDirection: 'ltr' }}>
                   {Array.isArray(match.score) && match.score.length >= 2
                     ? `${match.score[0]} - ${match.score[1]}`
                     : 'VS'}
@@ -972,6 +972,7 @@ export default function App() {
                   color: GREEN,
                   fontSize: 16,
                   fontWeight: '900',
+                  writingDirection: 'ltr',
                 }}>
                   {Array.isArray(match.score) && match.score.length >= 2
                     ? `${match.score[0]} - ${match.score[1]}`
@@ -1243,7 +1244,7 @@ export default function App() {
                 </Text>
               </View>
 
-              <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', marginHorizontal: 10 }}>
+              <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', marginHorizontal: 10, writingDirection: 'ltr' }}>
                 {Array.isArray(selectedMatch.score) && selectedMatch.score.length >= 2
                   ? `${selectedMatch.score[0]} - ${selectedMatch.score[1]}`
                   : 'VS'}
