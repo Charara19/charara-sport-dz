@@ -1,11 +1,9 @@
-name: Build Charara Sport DZ APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
+      - name: Restore Firebase configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
+          test -s google-services.json
 permissions:
   contents: read
 
@@ -34,8 +32,10 @@ jobs:
         run: npm ci
 
       - name: Restore Firebase configuration
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > google-services.json
+          printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
           test -s google-services.json
 
       - name: Generate Android project
