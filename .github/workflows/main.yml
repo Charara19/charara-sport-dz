@@ -1,9 +1,11 @@
-      - name: Restore Firebase configuration
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
-          test -s google-services.json
+name: Build Charara Sport DZ APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
 permissions:
   contents: read
 
@@ -35,8 +37,9 @@ jobs:
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          test -n "$GOOGLE_SERVICES_JSON"
           printf '%s' "$GOOGLE_SERVICES_JSON" > google-services.json
-          test -s google-services.json
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))"
 
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
