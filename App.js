@@ -814,7 +814,7 @@ export default function App() {
               {match.status || 'موعد المباراة'}  •  {match.time || '--:--'}
             </Text>
 
-            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
@@ -952,7 +952,7 @@ export default function App() {
               {match.status || 'موعد المباراة'} • {match.time || '--:--'}
             </Text>
             <View style={{
-              flexDirection: 'row-reverse',
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
@@ -1236,7 +1236,7 @@ export default function App() {
               {selectedMatch.status || 'موعد المباراة'} • {selectedMatch.time || '--:--'}
             </Text>
 
-            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-around' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' }}>
               <View style={{ flex: 1, alignItems: 'center' }}>
                 {selectedMatch.homeLogo ? <Image source={{ uri: selectedMatch.homeLogo }} style={{ width: 65, height: 65, resizeMode: 'contain', marginBottom: 8 }} /> : null}
                 <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
