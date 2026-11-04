@@ -206,25 +206,43 @@ export default function App() {
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
 
-  const findMatchingFixture = async (home, away, date) => {
+    const findMatchingFixture = async (home, away, date) => {
     try {
       const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
       if (!response.ok) return null;
+
       const data = await response.json();
       const fixtures = data.data?.response || [];
+
       const aliases = {
-        'غلطة سراي': 'galatasaray',
-        'شتوتجارت': 'vfb stuttgart',
+        'غلطة سراي': ['galatasaray'],
+        'شتوتجارت': ['vfb stuttgart', 'stuttgart'],
+        'أتلتيكو مدريد': ['atletico madrid', 'atlético madrid'],
+        'بايرن ميونخ': ['bayern münchen', 'bayern munich'],
       };
-      const normalize = value => {
-        const name = String(value || '').trim().toLowerCase();
-        return aliases[String(value || '').trim()] || name;
+
+      const normalize = value =>
+        String(value || '')
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]/g, '');
+
+      const matchesName = (apiName, appName) => {
+        const options = [appName, ...(aliases[appName] || [])];
+        return options.some(name => normalize(name) === normalize(apiName));
       };
-      return fixtures.find(item =>
-        normalize(item.teams?.home?.name) === normalize(home) &&
-        normalize(item.teams?.away?.name) === normalize(away) &&
-        !/u19|u-19|youth/i.test(item.league?.name || '')
-      ) || null;
+
+      const candidates = fixtures.filter(item =>
+        matchesName(item.teams?.home?.name, home) &&
+        matchesName(item.teams?.away?.name, away) &&
+        !/u19|u-19|youth/i.test(
+          `${item.league?.name || ''} ${item.teams?.home?.name || ''} ${item.teams?.away?.name || ''}`
+        )
+      );
+
+      return candidates.length === 1 ? candidates[0] : null;
     } catch (error) {
       return null;
     }
