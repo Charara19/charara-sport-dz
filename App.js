@@ -1162,6 +1162,60 @@ export default function App() {
   const OtherPage = () => {
     const [selectedLeague, setSelectedLeague] = useState('دوري أبطال أوروبا');
 
+    const [standings, setStandings] = useState([]);
+    const [standingsLoading, setStandingsLoading] = useState(false);
+    const [standingsError, setStandingsError] = useState('');
+
+    const leagueIds = {
+      'دوري أبطال أوروبا': '18',
+      'الدوري الإنجليزي': '24',
+      'الدوري الإسباني': '1',
+      'الدوري الألماني': '2',
+      'الدوري الإيطالي': '3',
+    };
+
+    useEffect(() => {
+      let active = true;
+      const leagueId = leagueIds[selectedLeague];
+
+      setStandings([]);
+      setStandingsError('');
+
+      if (!leagueId) {
+        setStandingsLoading(false);
+        setStandingsError('الترتيب غير متوفر لهذه البطولة من مصدر البيانات الحالي.');
+        return () => { active = false; };
+      }
+
+      setStandingsLoading(true);
+
+      fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
+        .then(async response => {
+          const payload = await response.json();
+
+          if (!response.ok || !payload.success) {
+            throw new Error('Standings request failed');
+          }
+
+          if (!Array.isArray(payload.data)) {
+            throw new Error('Invalid standings data');
+          }
+
+          if (active) setStandings(payload.data);
+        })
+        .catch(() => {
+          if (active) {
+            setStandingsError('تعذر تحميل الترتيب حالياً. حاول مرة أخرى لاحقاً.');
+          }
+        })
+        .finally(() => {
+          if (active) setStandingsLoading(false);
+        });
+
+      return () => { active = false; };
+    }, [selectedLeague]);
+
+
     const leagues = [
       { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
       { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
@@ -1251,9 +1305,66 @@ export default function App() {
               <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right' }}>
                 جدول الترتيب
               </Text>
-              <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 8, lineHeight: 22 }}>
-                بيانات الترتيب غير متاحة حالياً. سنعرض الترتيب الحقيقي بعد نجاح الاتصال بمصدر البيانات الرسمي.
-              </Text>
+              {standingsLoading ? (
+                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
+                  جاري تحميل الترتيب...
+                </Text>
+              ) : standingsError ? (
+                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12, lineHeight: 23 }}>
+                  {standingsError}
+                </Text>
+              ) : standings.length > 0 ? (
+                <View style={{ marginTop: 14 }}>
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#203329',
+                    paddingVertical: 11,
+                    paddingHorizontal: 5,
+                    borderRadius: 9,
+                  }}>
+                    <Text style={{ color: GREEN, width: 32, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>م</Text>
+                    <Text style={{ color: GREEN, flex: 1, textAlign: 'right', fontSize: 11, fontWeight: '900' }}>الفريق</Text>
+                    <Text style={{ color: GREEN, width: 34, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>لعب</Text>
+                    <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>فارق</Text>
+                    <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>نقاط</Text>
+                  </View>
+
+                  {standings.map((row, index) => (
+                    <View
+                      key={String(row.team?.id || row.position || index)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 13,
+                        paddingHorizontal: 5,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#26372D',
+                      }}
+                    >
+                      <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
+                        {row.position ?? index + 1}
+                      </Text>
+                      <Text numberOfLines={1} style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                        {row.team?.short_name || row.team?.name || '—'}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 12 }}>
+                        {row.played ?? 0}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', width: 38, textAlign: 'center', fontSize: 12 }}>
+                        {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
+                      </Text>
+                      <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
+                        {row.points ?? 0}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
+                  لا توجد بيانات ترتيب متاحة حالياً.
+                </Text>
+              )}
             </View>
           </View>
         </View>
