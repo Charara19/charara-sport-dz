@@ -227,6 +227,8 @@ export default function App() {
         'ريال سوسيداد': ['Real Sociedad'],
         'أولمبيك ليون': ['Lyon', 'Olympique Lyonnais'],
         'ألكمار': ['AZ Alkmaar'],
+      'خيتافي': ['Getafe'],
+      'برايتون': ['Brighton'],
         'يوفنتوس': ['Juventus'],
         'باير ليفركوزن': ['Bayer Leverkusen'],
         'أولمبيك مارسيليا': ['Marseille', 'Olympique Marseille'],
