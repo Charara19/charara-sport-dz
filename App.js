@@ -207,7 +207,7 @@ export default function App() {
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
 
-    const findMatchingFixture = async (home, away, date) => {
+  const findMatchingFixture = async (home, away, date) => {
     try {
       const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
       if (!response.ok) return null;
@@ -220,6 +220,12 @@ export default function App() {
         'شتوتجارت': ['vfb stuttgart', 'stuttgart'],
         'أتلتيكو مدريد': ['atletico madrid', 'atlético madrid'],
         'بايرن ميونخ': ['bayern münchen', 'bayern munich'],
+        'بوروسيا دورتموند': ['borussia dortmund', 'dortmund'],
+        'ريال بيتيس': ['real betis', 'betis'],
+        'ميلان': ['ac milan', 'milan'],
+        'فيرينتسفاروشي': ['ferencvaros', 'ferencvárosi tc'],
+        'اتحاد العاصمة': ['usm alger', 'usm alger'],
+        'مولودية الجزائر': ['mc alger', 'mouloudia club d alger'],
       };
 
       const normalize = value =>
@@ -235,16 +241,21 @@ export default function App() {
         return options.some(name => normalize(name) === normalize(apiName));
       };
 
-      const candidates = fixtures.filter(item =>
-        matchesName(item.teams?.home?.name, home) &&
-        matchesName(item.teams?.away?.name, away) &&
-        !/u19|u-19|youth/i.test(
-          `${item.league?.name || ''} ${item.teams?.home?.name || ''} ${item.teams?.away?.name || ''}`
-        )
-      );
+      const candidates = fixtures.filter(item => {
+        const homeName = item.teams?.home?.name || '';
+        const awayName = item.teams?.away?.name || '';
+        const competition = `${item.league?.name || ''} ${homeName} ${awayName}`;
+
+        if (/u19|u-19|u17|u-17|youth|women|feminine|reserve/i.test(competition)) {
+          return false;
+        }
+
+        return matchesName(homeName, home) && matchesName(awayName, away);
+      });
 
       return candidates.length === 1 ? candidates[0] : null;
     } catch (error) {
+      console.log('Fixture matching error:', error.message);
       return null;
     }
   };
