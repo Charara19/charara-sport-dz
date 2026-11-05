@@ -290,7 +290,23 @@ export default function App() {
   };
 
 
-  const fetchMatches = async (day = 'today') => {
+  const getDateForMatchDay = (day) => {
+  const date = new Date();
+
+  if (day === 'yesterday') {
+    date.setDate(date.getDate() - 1);
+  } else if (day === 'tomorrow') {
+    date.setDate(date.getDate() + 1);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const dayNumber = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${dayNumber}`;
+};
+
+const fetchMatches = async (day = 'today') => {
     setMatchesLoading(true);
     setMatchesError('');
 
@@ -306,7 +322,7 @@ export default function App() {
         throw new Error('بيانات المباريات غير صالحة');
       }
 
-      setMatches(data.matches);
+      setMatches(data.matches.map(match => ({ ...match, matchDate: getDateForMatchDay(day) })));
     } catch (error) {
       setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
     } finally {
@@ -331,7 +347,7 @@ export default function App() {
   const fetchMatchStats = async (match) => {
     if (!match?.url) return;
 
-    const date = match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+    const date = match.matchDate || match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0];
     if (!date) return;
 
     setStatsLoading(true);
