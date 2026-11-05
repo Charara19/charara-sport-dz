@@ -207,6 +207,7 @@ export default function App() {
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
 
+
   const findMatchingFixture = async (home, away, date) => {
     try {
       const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
@@ -216,16 +217,36 @@ export default function App() {
       const fixtures = data.data?.response || [];
 
       const aliases = {
-        'غلطة سراي': ['galatasaray'],
-        'شتوتجارت': ['vfb stuttgart', 'stuttgart'],
-        'أتلتيكو مدريد': ['atletico madrid', 'atlético madrid'],
-        'بايرن ميونخ': ['bayern münchen', 'bayern munich'],
-        'بوروسيا دورتموند': ['borussia dortmund', 'dortmund'],
-        'ريال بيتيس': ['real betis', 'betis'],
-        'ميلان': ['ac milan', 'milan'],
-        'فيرينتسفاروشي': ['ferencvaros', 'ferencvárosi tc'],
-        'اتحاد العاصمة': ['usm alger', 'usm alger'],
-        'مولودية الجزائر': ['mc alger', 'mouloudia club d alger'],
+        'ميلان': ['AC Milan'],
+        'فيرينتسفاروشي': ['Ferencvarosi TC', 'Ferencvárosi TC'],
+        'كريستال بالاس': ['Crystal Palace'],
+        'هوفنهايم': ['1899 Hoffenheim', 'Hoffenheim'],
+        'ريال سوسيداد': ['Real Sociedad'],
+        'أولمبيك ليون': ['Lyon', 'Olympique Lyonnais'],
+        'ألكمار': ['AZ Alkmaar'],
+        'يوفنتوس': ['Juventus'],
+        'باير ليفركوزن': ['Bayer Leverkusen'],
+        'أولمبيك مارسيليا': ['Marseille', 'Olympique Marseille'],
+        'الجيش الملكي': ['FAR Rabat', 'FAR'],
+        'الرجاء البيضاوي': ['Raja Casablanca', 'Raja CA'],
+        'لايبزيج': ['RB Leipzig', 'Leipzig'],
+        'مانشستر سيتي': ['Manchester City'],
+        'لانس': ['Lens'],
+        'كومو': ['Como'],
+        'بوروسيا دورتموند': ['Borussia Dortmund', 'Dortmund'],
+        'ريال بيتيس': ['Real Betis'],
+        'سلافيا براغ': ['Slavia Praha', 'Slavia Prague'],
+        'أرسنال': ['Arsenal'],
+        'آيندهوفن': ['PSV Eindhoven', 'PSV'],
+        'كلوب بروج': ['Club Brugge KV', 'Club Brugge'],
+        'بورتو': ['FC Porto', 'Porto'],
+        'نابولي': ['Napoli'],
+        'غلطة سراي': ['Galatasaray'],
+        'شتوتجارت': ['VfB Stuttgart', 'Stuttgart'],
+        'أتلتيكو مدريد': ['Atletico Madrid', 'Atlético Madrid'],
+        'بايرن ميونخ': ['Bayern München', 'Bayern Munich'],
+        'اتحاد العاصمة': ['USM Alger'],
+        'مولودية الجزائر': ['MC Alger', 'Mouloudia Club d Alger']
       };
 
       const normalize = value =>
@@ -238,19 +259,24 @@ export default function App() {
 
       const matchesName = (apiName, appName) => {
         const options = [appName, ...(aliases[appName] || [])];
-        return options.some(name => normalize(name) === normalize(apiName));
+        const apiNormalized = normalize(apiName);
+
+        return Boolean(apiNormalized) &&
+          options.some(name => normalize(name) === apiNormalized);
       };
 
       const candidates = fixtures.filter(item => {
         const homeName = item.teams?.home?.name || '';
         const awayName = item.teams?.away?.name || '';
-        const competition = `${item.league?.name || ''} ${homeName} ${awayName}`;
+        const competition =
+          `${item.league?.name || ''} ${homeName} ${awayName}`;
 
-        if (/u19|u-19|u17|u-17|youth|women|feminine|reserve/i.test(competition)) {
+        if (/u19|u-19|u21|u-21|u17|u-17|youth|women|feminine|reserve/i.test(competition)) {
           return false;
         }
 
-        return matchesName(homeName, home) && matchesName(awayName, away);
+        return matchesName(homeName, home) &&
+          matchesName(awayName, away);
       });
 
       return candidates.length === 1 ? candidates[0] : null;
@@ -259,6 +285,7 @@ export default function App() {
       return null;
     }
   };
+
 
   const fetchMatches = async (day = 'today') => {
     setMatchesLoading(true);
