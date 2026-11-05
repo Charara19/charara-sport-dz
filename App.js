@@ -109,6 +109,9 @@ export default function App() {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [matchStats, setMatchStats] = useState([]);
   const [matchEvents, setMatchEvents] = useState([]);
+  const [matchLineups, setMatchLineups] = useState([]);
+  const [lineupsLoading, setLineupsLoading] = useState(false);
+  const [lineupsError, setLineupsError] = useState('');
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
   const [fixtureStatus, setFixtureStatus] = useState('');
@@ -334,12 +337,16 @@ export default function App() {
     setStatsLoading(true);
     setStatsError('');
     setMatchStats([]);
+    setLineupsLoading(true);
+    setLineupsError('');
+    setMatchLineups([]);
 
     try {
       const fixture = await findMatchingFixture(match.home, match.away, date);
 
       if (!fixture?.fixture?.id) {
         setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
+        setLineupsError('تعذر العثور على المباراة لجلب التشكيلة.');
         return;
       }
 
@@ -349,6 +356,27 @@ export default function App() {
         awayId: fixture.teams?.away?.id
       };
       setFixtureStatus(fixture.fixture.status?.short || '');
+
+      try {
+        const lineupsResponse = await fetch(
+          `${STATS_API_URL}fixtures/lineups?fixture=${fixture.fixture.id}`
+        );
+
+        if (!lineupsResponse.ok) {
+          throw new Error('تعذر تحميل التشكيلة');
+        }
+
+        const lineupsData = await lineupsResponse.json();
+        const incomingLineups = lineupsData.data?.response || [];
+        setMatchLineups(incomingLineups);
+
+        if (incomingLineups.length === 0) {
+          setLineupsError('لم تُعلن التشكيلة الرسمية بعد.');
+        }
+      } catch (lineupError) {
+        setMatchLineups([]);
+        setLineupsError('التشكيلة غير متاحة حاليًا.');
+      }
 
       const eventsResponse = await fetch(
         `${STATS_API_URL}fixtures/events?fixture=${fixture.fixture.id}`
@@ -405,6 +433,7 @@ export default function App() {
       setStatsError('تعذر تحميل إحصائيات المباراة حاليًا.');
     } finally {
       setStatsLoading(false);
+      setLineupsLoading(false);
     }
   };
 
@@ -413,6 +442,9 @@ export default function App() {
     else {
       setMatchStats([]);
       setMatchEvents([]);
+      setMatchLineups([]);
+      setLineupsLoading(false);
+      setLineupsError('');
       setStatsError('');
       setFixtureStatus('');
     }
@@ -1323,6 +1355,93 @@ export default function App() {
                   {selectedMatch.away || 'الفريق الثاني'}
                 </Text>
               </View>
+            </View>
+
+            <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
+              <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+                التشكيلة الرسمية
+              </Text>
+
+              {lineupsLoading ? (
+                <Text style={{ color: MUTED, textAlign: 'center' }}>
+                  جارٍ تحميل التشكيلة...
+                </Text>
+              ) : matchLineups.length > 0 ? (
+                matchLineups.map((lineup, lineupIndex) => (
+                  <View key={lineup.team?.id || lineupIndex} style={{ marginBottom: 18 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', textAlign: 'center', marginBottom: 6 }}>
+                      {lineup.team?.name || `الفريق ${lineupIndex + 1}`}
+                    </Text>
+
+                    <Text style={{ color: GREEN, textAlign: 'center', fontWeight: '800', marginBottom: 5 }}>
+                      خطة اللعب: {lineup.formation || '--'}
+                    </Text>
+
+                    <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 12 }}>
+                      المدرب: {lineup.coach?.name || 'غير متوفر'}
+                    </Text>
+
+                    <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
+                      التشكيلة الأساسية
+                    </Text>
+
+                    {(lineup.startXI || []).map((item, playerIndex) => {
+                      const player = item.player || {};
+                      const positions = {
+                        G: 'حارس',
+                        D: 'دفاع',
+                        M: 'وسط',
+                        F: 'هجوم'
+                      };
+
+                      return (
+                        <View key={player.id || playerIndex} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+                          <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right' }}>
+                            {player.name || 'لاعب'}
+                          </Text>
+                          <Text style={{ color: GREEN, marginHorizontal: 10, fontWeight: '900' }}>
+                            #{player.number ?? '--'}
+                          </Text>
+                          <Text style={{ color: MUTED, width: 55, textAlign: 'left' }}>
+                            {positions[player.pos] || player.pos || '--'}
+                          </Text>
+                        </View>
+                      );
+                    })}
+
+                    <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginTop: 14, marginBottom: 8 }}>
+                      اللاعبون الاحتياطيون
+                    </Text>
+
+                    {(lineup.substitutes || []).length > 0 ? (
+                      lineup.substitutes.map((item, playerIndex) => {
+                        const player = item.player || {};
+                        return (
+                          <View key={player.id || playerIndex} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+                            <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right' }}>
+                              {player.name || 'لاعب'}
+                            </Text>
+                            <Text style={{ color: GREEN, marginHorizontal: 10, fontWeight: '900' }}>
+                              #{player.number ?? '--'}
+                            </Text>
+                            <Text style={{ color: MUTED, width: 55, textAlign: 'left' }}>
+                              {player.pos || '--'}
+                            </Text>
+                          </View>
+                        );
+                      })
+                    ) : (
+                      <Text style={{ color: MUTED, textAlign: 'center' }}>
+                        لا توجد أسماء احتياطية متاحة.
+                      </Text>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <Text style={{ color: MUTED, textAlign: 'center' }}>
+                  {lineupsError || 'لم تُعلن التشكيلة الرسمية بعد.'}
+                </Text>
+              )}
             </View>
 
             <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
