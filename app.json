@@ -16,7 +16,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.charara.sportdz"
     },
-    "package": "com.charara.sportdz",
     "android": {
       "package": "com.charara.sportdz",
       "permissions": [

@@ -116,6 +116,7 @@ export default function App() {
   const [pushStatus, setPushStatus] = useState('لم يتم التسجيل بعد');
   const previousEventsRef = useRef({});
   const currentFixtureIdRef = useRef(null);
+  const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -305,6 +306,10 @@ export default function App() {
       }
 
       currentFixtureIdRef.current = fixture.fixture.id;
+      currentFixtureTeamsRef.current = {
+        homeId: fixture.teams?.home?.id,
+        awayId: fixture.teams?.away?.id
+      };
       setFixtureStatus(fixture.fixture.status?.short || '');
 
       const eventsResponse = await fetch(
@@ -347,12 +352,17 @@ export default function App() {
       const data = await response.json();
       const statistics = data.data?.response || [];
 
-      if (statistics.length !== 2) {
+      const homeId = currentFixtureTeamsRef.current.homeId;
+      const awayId = currentFixtureTeamsRef.current.awayId;
+      const homeStats = statistics.find(team => String(team.team?.id) === String(homeId));
+      const awayStats = statistics.find(team => String(team.team?.id) === String(awayId));
+
+      if (!homeStats || !awayStats) {
         setStatsError('الإحصائيات ستظهر عند انطلاق المباراة.');
         return;
       }
 
-      setMatchStats(statistics);
+      setMatchStats([homeStats, awayStats]);
     } catch (error) {
       setStatsError('تعذر تحميل إحصائيات المباراة حاليًا.');
     } finally {
@@ -373,6 +383,7 @@ export default function App() {
   useEffect(() => {
     if (!selectedMatch) {
       currentFixtureIdRef.current = null;
+      currentFixtureTeamsRef.current = { homeId: null, awayId: null };
       return;
     }
 
@@ -408,6 +419,24 @@ export default function App() {
 
         previousEventsRef.current[id] = new Set(incomingEvents.map(eventKey));
         setMatchEvents(incomingEvents);
+
+        const statsResponse = await fetch(
+          `${STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
+        );
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          const statistics = statsData.data?.response || [];
+          const homeId = currentFixtureTeamsRef.current.homeId;
+          const awayId = currentFixtureTeamsRef.current.awayId;
+          const homeStats = statistics.find(team => String(team.team?.id) === String(homeId));
+          const awayStats = statistics.find(team => String(team.team?.id) === String(awayId));
+
+          if (homeStats && awayStats) {
+            setMatchStats([homeStats, awayStats]);
+            setStatsError('');
+          }
+        }
       } catch (error) {
         // تجاهل أخطاء التحديث المؤقتة
       }
