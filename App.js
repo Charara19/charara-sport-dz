@@ -396,7 +396,22 @@ const fetchMatches = async (day = 'today') => {
         throw new Error('بيانات المباريات غير صالحة');
       }
 
-      setMatches(data.matches.map(match => ({ ...match, matchDate: getDateForMatchDay(day) })));
+      const updatedMatches = data.matches.map(match => ({
+        ...match,
+        matchDate: getDateForMatchDay(day)
+      }));
+
+      setMatches(updatedMatches);
+
+      setSelectedMatch(current => {
+        if (!current) return current;
+
+        const latestMatch = updatedMatches.find(
+          match => match.url === current.url
+        );
+
+        return latestMatch ? { ...current, ...latestMatch } : current;
+      });
     } catch (error) {
       setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
     } finally {
@@ -606,7 +621,7 @@ const fetchMatches = async (day = 'today') => {
       setStatsError('');
       setFixtureStatus('');
     }
-  }, [selectedMatch]);
+  }, [selectedMatch?.url]);
 
   useEffect(() => {
     if (!selectedMatch) {
@@ -675,7 +690,7 @@ const fetchMatches = async (day = 'today') => {
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [selectedMatch, soundEnabled]);
+  }, [selectedMatch?.url, soundEnabled]);
 
   const playStream = () => {
     const url = streamUrl.trim();
