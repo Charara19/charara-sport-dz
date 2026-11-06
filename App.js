@@ -311,7 +311,15 @@ export default function App() {
         'أتلتيكو مدريد': ['Atletico Madrid', 'Atlético Madrid'],
         'بايرن ميونخ': ['Bayern München', 'Bayern Munich'],
         'اتحاد العاصمة': ['USM Alger'],
-        'مولودية الجزائر': ['MC Alger', 'Mouloudia Club d Alger']
+        'مولودية الجزائر': ['MC Alger', 'Mouloudia Club d Alger'],
+        'الاتحاد': ['Al-Ittihad FC'],
+        'الحزم': ['Al-Hazm', 'Al Hazem'],
+        'النصر': ['Al-Nassr', 'Al Nassr'],
+        'نيوم': ['NEOM'],
+        'إيفرتون': ['Everton'],
+        'كوفنتري سيتي': ['Coventry', 'Coventry City'],
+        'إشبيلية': ['Sevilla'],
+        'ألافيس': ['Alaves', 'Deportivo Alaves']
       };
 
       const normalize = value =>
