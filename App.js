@@ -425,7 +425,12 @@ const fetchMatches = async (day = 'today') => {
             Number.isFinite(player.playerRating) &&
             player.playerRating !== null &&
             player.minutesPlayed > 0
-          ).sort((a, b) => b.playerRating - a.playerRating);
+          ).sort((a, b) =>
+          (b.playerRating - a.playerRating) ||
+          (b.playerStats.goals - a.playerStats.goals) ||
+          (b.playerStats.assists - a.playerStats.assists) ||
+          (b.minutesPlayed - a.minutesPlayed)
+        );
 
           setMatchPlayerRatings(ratedPlayers);
         } catch (playersError) {
