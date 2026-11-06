@@ -1725,7 +1725,28 @@ const fetchMatches = async (day = 'today') => {
                     <Text style={{ color: GREEN, fontWeight: '900', flex: 1, textAlign: 'left' }}>{matchStats[0].team?.name || 'الفريق الأول'}</Text>
                     <Text style={{ color: GREEN, fontWeight: '900', flex: 1, textAlign: 'right' }}>{matchStats[1].team?.name || 'الفريق الثاني'}</Text>
                   </View>
-                  {matchStats[0].statistics.map((stat, index) => {
+                  {[...matchStats[0].statistics].sort((a, b) => {
+                    const priority = [
+                      /ball possession/i,
+                      /total shots/i,
+                      /shots on goal|shots on target/i,
+                      /corner kicks/i,
+                      /total passes/i,
+                      /passes accurate|pass accuracy/i,
+                      /shots insidebox/i,
+                      /shots outsidebox/i,
+                      /fouls/i,
+                      /yellow cards/i,
+                      /red cards/i,
+                      /offsides/i,
+                      /goalkeeper saves/i,
+                    ];
+                    const rank = type => {
+                      const index = priority.findIndex(pattern => pattern.test(String(type)));
+                      return index < 0 ? priority.length : index;
+                    };
+                    return rank(a.type) - rank(b.type);
+                  }).map((stat, index) => {
                     const other = matchStats[1].statistics.find(item => item.type === stat.type);
                     const raw1 = stat.value;
                     const raw2 = other?.value;
