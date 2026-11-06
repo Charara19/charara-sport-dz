@@ -110,6 +110,8 @@ export default function App() {
   const [matchStats, setMatchStats] = useState([]);
   const [matchEvents, setMatchEvents] = useState([]);
   const [matchLineups, setMatchLineups] = useState([]);
+  const [matchPlayerRatings, setMatchPlayerRatings] = useState([]);
+  const [playersLoading, setPlayersLoading] = useState(false);
   const [lineupsLoading, setLineupsLoading] = useState(false);
   const [lineupsError, setLineupsError] = useState('');
   const [statsLoading, setStatsLoading] = useState(false);
@@ -358,6 +360,9 @@ const fetchMatches = async (day = 'today') => {
     setLineupsLoading(true);
     setLineupsError('');
     setMatchLineups([]);
+    setMatchPlayerRatings([]);
+    setPlayersLoading(true);
+    let ratingsRequestStarted = false;
 
     try {
       const fixture = await findMatchingFixture(match.home, match.away, date);
@@ -365,6 +370,7 @@ const fetchMatches = async (day = 'today') => {
       if (!fixture?.fixture?.id) {
         setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
         setLineupsError('تعذر العثور على المباراة لجلب التشكيلة.');
+        setPlayersLoading(false);
         return;
       }
 
@@ -374,6 +380,50 @@ const fetchMatches = async (day = 'today') => {
         awayId: fixture.teams?.away?.id
       };
       setFixtureStatus(fixture.fixture.status?.short || '');
+
+      // جلب تقييمات اللاعبين بشكل مستقل عن بقية بيانات المباراة
+      ratingsRequestStarted = true;
+      (async () => {
+        try {
+          const playersResponse = await fetch(
+            `${STATS_API_URL}fixtures/players?fixture=${fixture.fixture.id}`
+          );
+
+          if (!playersResponse.ok) {
+            throw new Error('تعذر تحميل تقييمات اللاعبين');
+          }
+
+          const playersData = await playersResponse.json();
+          const teams = playersData.data?.response || [];
+
+          const ratedPlayers = teams.flatMap(team =>
+            (team.players || []).map(item => {
+              const statistics = item.statistics?.[0] || {};
+              const rawRating = statistics.games?.rating;
+
+              return {
+                ...item,
+                teamName: team.team?.name || '',
+                playerRating: rawRating == null || rawRating === ''
+                  ? null
+                  : Number(rawRating),
+                minutesPlayed: Number(statistics.games?.minutes || 0),
+              };
+            })
+          ).filter(player =>
+            Number.isFinite(player.playerRating) &&
+            player.playerRating !== null &&
+            player.minutesPlayed > 0
+          ).sort((a, b) => b.playerRating - a.playerRating);
+
+          setMatchPlayerRatings(ratedPlayers);
+        } catch (playersError) {
+          console.log('Player ratings:', playersError.message);
+          setMatchPlayerRatings([]);
+        } finally {
+          setPlayersLoading(false);
+        }
+      })();
 
       try {
         const lineupsResponse = await fetch(
@@ -449,6 +499,7 @@ const fetchMatches = async (day = 'today') => {
       setMatchStats([homeStats, awayStats]);
     } catch (error) {
       setStatsError('تعذر تحميل إحصائيات المباراة حاليًا.');
+      if (!ratingsRequestStarted) setPlayersLoading(false);
     } finally {
       setStatsLoading(false);
       setLineupsLoading(false);
@@ -461,6 +512,8 @@ const fetchMatches = async (day = 'today') => {
       setMatchStats([]);
       setMatchEvents([]);
       setMatchLineups([]);
+      setMatchPlayerRatings([]);
+      setPlayersLoading(false);
       setLineupsLoading(false);
       setLineupsError('');
       setStatsError('');
@@ -1452,8 +1505,8 @@ const fetchMatches = async (day = 'today') => {
             />
           </View>
         ) : selectedMatch ? (
-          <View style={{ backgroundColor: PANEL, borderRadius: 16, padding: 18, marginBottom: 15, borderWidth: 1, borderColor: '#245235' }}>
-            <Text style={{ color: GREEN, fontSize: 20, fontWeight: '900', textAlign: 'center', marginBottom: 18 }}>
+          <View style={{ backgroundColor: '#101A14', borderRadius: 22, padding: 20, marginBottom: 18, borderWidth: 1, borderColor: '#245A38', elevation: 7, shadowColor: '#00E676', shadowOpacity: 0.10, shadowRadius: 12 }}>
+            <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', textAlign: 'center', marginBottom: 20, letterSpacing: 0.5 }}>
               تفاصيل المباراة
             </Text>
 
@@ -1466,13 +1519,13 @@ const fetchMatches = async (day = 'today') => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' }}>
               <View style={{ flex: 1, alignItems: 'center' }}>
-                {selectedMatch.homeLogo ? <Image source={{ uri: selectedMatch.homeLogo }} style={{ width: 65, height: 65, resizeMode: 'contain', marginBottom: 8 }} /> : null}
+                {selectedMatch.homeLogo ? <Image source={{ uri: selectedMatch.homeLogo }} style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 12 }} /> : null}
                 <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
                   {selectedMatch.home || 'الفريق الأول'}
                 </Text>
               </View>
 
-              <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', marginHorizontal: 10, writingDirection: 'ltr' }}>
+              <Text style={{ color: GREEN, fontSize: 30, fontWeight: '900', marginHorizontal: 10, writingDirection: 'ltr' }}>
                 {Array.isArray(selectedMatch.score) && selectedMatch.score.length >= 2
                   ? `${selectedMatch.score[0]} - ${selectedMatch.score[1]}`
                   : 'VS'}
@@ -1486,7 +1539,72 @@ const fetchMatches = async (day = 'today') => {
               </View>
             </View>
 
-            <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
+            <View style={{ backgroundColor: '#101A14', borderRadius: 18, padding: 16, marginTop: 20, marginBottom: 12, borderWidth: 1, borderColor: '#245A38' }}>
+  <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 14 }}>
+    ⭐ أفضل لاعب وتقييمات اللاعبين
+  </Text>
+
+  {playersLoading ? (
+    <Text style={{ color: MUTED, textAlign: 'center', padding: 12 }}>
+      جارٍ تحميل تقييمات اللاعبين...
+    </Text>
+  ) : matchPlayerRatings.length > 0 ? (
+    <>
+      <View style={{ backgroundColor: '#172A1D', borderRadius: 15, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#397849', marginBottom: 14 }}>
+        <Text style={{ color: '#FFD700', fontSize: 14, fontWeight: '900', marginBottom: 10 }}>
+          🏆 رجل المباراة حسب التقييم
+        </Text>
+        {matchPlayerRatings[0].player?.photo ? (
+          <Image source={{ uri: matchPlayerRatings[0].player.photo }} style={{ width: 76, height: 76, borderRadius: 38, marginBottom: 9, backgroundColor: '#26382B' }} />
+        ) : null}
+        <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: '900', textAlign: 'center' }}>
+          {matchPlayerRatings[0].player?.name || 'لاعب'}
+        </Text>
+        <Text style={{ color: MUTED, marginTop: 4 }}>
+          {matchPlayerRatings[0].teamName}
+        </Text>
+        <Text style={{ color: '#FFD700', fontSize: 25, fontWeight: '900', marginTop: 8 }}>
+          {matchPlayerRatings[0].playerRating.toFixed(1)} / 10
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
+          {matchPlayerRatings[0].minutesPlayed} دقيقة لعب
+        </Text>
+      </View>
+
+      {matchPlayerRatings.length > 1 ? (
+        <>
+          <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
+            أعلى تقييمات اللاعبين
+          </Text>
+          {matchPlayerRatings.slice(1, 5).map((item, index) => (
+            <View key={item.player?.id || index} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+              {item.player?.photo ? (
+                <Image source={{ uri: item.player.photo }} style={{ width: 38, height: 38, borderRadius: 19, marginLeft: 10, backgroundColor: '#26382B' }} />
+              ) : null}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', textAlign: 'right' }}>
+                  {item.player?.name || 'لاعب'}
+                </Text>
+                <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 3 }}>
+                  {item.teamName} • {item.minutesPlayed} دقيقة
+                </Text>
+              </View>
+              <Text style={{ color: GREEN, fontWeight: '900', fontSize: 16, marginRight: 10 }}>
+                {item.playerRating.toFixed(1)}
+              </Text>
+            </View>
+          ))}
+        </>
+      ) : null}
+    </>
+  ) : (
+    <Text style={{ color: MUTED, textAlign: 'center', padding: 10 }}>
+      تقييمات اللاعبين غير متاحة لهذه المباراة حاليًا.
+    </Text>
+  )}
+</View>
+
+<View style={{ backgroundColor: '#0B120E', borderRadius: 16, padding: 16, marginTop: 22, marginBottom: 10, borderWidth: 1, borderColor: '#203D2B' }}>
               <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
                 التشكيلة الرسمية
               </Text>
