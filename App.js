@@ -102,6 +102,63 @@ export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [category, setCategory] = useState('الكل');
   const [matches, setMatches] = useState([]);
+  const [favoriteTeams, setFavoriteTeams] = useState([]);
+
+  const toggleFavoriteTeam = async (teamName) => {
+    const name = String(teamName || '').trim();
+    if (!name) return;
+
+    const updated = favoriteTeams.includes(name)
+      ? favoriteTeams.filter(team => team !== name)
+      : [...favoriteTeams, name];
+
+    setFavoriteTeams(updated);
+
+    try {
+      await AsyncStorage.setItem(
+        'chararaFavoriteTeams',
+        JSON.stringify(updated)
+      );
+    } catch (error) {
+      console.log('تعذر حفظ المفضلة:', error);
+    }
+  };
+
+  const favoritesLoadedRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadFavoriteTeams = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('chararaFavoriteTeams');
+        if (mounted && saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setFavoriteTeams(parsed);
+        }
+      } catch (error) {
+        console.log('تعذر تحميل الفرق المفضلة:', error);
+      } finally {
+        if (mounted) favoritesLoadedRef.current = true;
+      }
+    };
+
+    loadFavoriteTeams();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!favoritesLoadedRef.current) return;
+
+    AsyncStorage.setItem(
+      'chararaFavoriteTeams',
+      JSON.stringify(favoriteTeams)
+    ).catch(error => console.log('تعذر حفظ الفرق المفضلة:', error));
+  }, [favoriteTeams]);
+
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState('');
   const [matchDay, setMatchDay] = useState('today');
@@ -202,6 +259,7 @@ export default function App() {
   const tabs = [
     'الرئيسية',
     'المباريات',
+    'المفضلة',
     'البث المباشر',
     'البطولات',
     'حسابي',
@@ -992,8 +1050,8 @@ const fetchMatches = async (day = 'today') => {
               borderRadius: 15,
               padding: 14,
               marginBottom: 11,
-              borderWidth: 1,
-              borderColor: '#24372B',
+              borderWidth: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? 2 : 1,
+              borderColor: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? '#FFD700' : '#24372B',
             }}
           >
             <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginBottom: 12 }}>
@@ -1004,6 +1062,9 @@ const fetchMatches = async (day = 'today') => {
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
+                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.home)} style={{ padding: 5 }}>
+                  <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
+                </TouchableOpacity>
               </View>
               <View style={{ backgroundColor: '#07100A', paddingHorizontal: 13, paddingVertical: 9, borderRadius: 9 }}>
                 <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', writingDirection: 'ltr' }}>
@@ -1015,6 +1076,9 @@ const fetchMatches = async (day = 'today') => {
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
+                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.away)} style={{ padding: 5 }}>
+                  <Text style={{ color: favoriteTeams.includes(match.away) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -1145,6 +1209,9 @@ const fetchMatches = async (day = 'today') => {
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
+                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.home)} style={{ padding: 5 }}>
+                  <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
+                </TouchableOpacity>
               </View>
               <View style={{
                 backgroundColor: '#07100A',
@@ -1168,6 +1235,9 @@ const fetchMatches = async (day = 'today') => {
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                 {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
+                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.away)} style={{ padding: 5 }}>
+                  <Text style={{ color: favoriteTeams.includes(match.away) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
+                </TouchableOpacity>
               </View>
             </View>
             <Text style={{
@@ -1244,6 +1314,79 @@ const fetchMatches = async (day = 'today') => {
         </Text>
       </View>
     </>
+  );
+
+  const FavoritesPage = () => (
+    <View style={{ paddingBottom: 20 }}>
+      <View style={{
+        backgroundColor: '#101A14',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#245235',
+        padding: 20,
+        marginBottom: 16,
+      }}>
+        <Text style={{ color: GREEN, fontSize: 23, fontWeight: '900', textAlign: 'right' }}>
+          ⭐ الفرق المفضلة
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 8 }}>
+          تابع فرقك المفضلة بسهولة. يمكنك إضافة الفرق أو إزالتها من نجمة المباراة.
+        </Text>
+        <Text style={{ color: '#FFD700', fontSize: 15, fontWeight: '900', textAlign: 'right', marginTop: 12 }}>
+          عدد الفرق: {favoriteTeams.length}
+        </Text>
+      </View>
+
+      {favoriteTeams.length > 0 ? favoriteTeams.map((team, index) => (
+        <View key={`${team}-${index}`} style={{
+          backgroundColor: '#111A15',
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: '#294735',
+          padding: 15,
+          marginBottom: 10,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}>
+          <TouchableOpacity
+            onPress={() => toggleFavoriteTeam(team)}
+            style={{ padding: 8 }}
+          >
+            <Text style={{ color: '#FF6B6B', fontSize: 20 }}>✕</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>
+              {team}
+            </Text>
+            <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+              فريق ضمن مفضلتك
+            </Text>
+          </View>
+          <Text style={{ color: '#FFD700', fontSize: 25, marginLeft: 12 }}>★</Text>
+        </View>
+      )) : (
+        <View style={{
+          backgroundColor: '#111A15',
+          borderRadius: 16,
+          padding: 25,
+          alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 38 }}>⭐</Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '900', marginTop: 12 }}>
+            لا توجد فرق مفضلة بعد
+          </Text>
+          <Text style={{ color: MUTED, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
+            افتح المباريات واضغط على النجمة بجانب اسم الفريق لإضافته هنا.
+          </Text>
+          <TouchableOpacity
+            onPress={() => setTab('المباريات')}
+            style={{ backgroundColor: '#153D27', padding: 13, borderRadius: 10, marginTop: 18 }}
+          >
+            <Text style={{ color: GREEN, fontWeight: '900' }}>انتقل إلى المباريات</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
   );
 
   const OtherPage = () => {
@@ -1994,6 +2137,8 @@ const fetchMatches = async (day = 'today') => {
           <BroadcastPage />
         ) : tab === 'المباريات' ? (
           <MatchesPage />
+        ) : tab === 'المفضلة' ? (
+          <FavoritesPage />
         ) : (
           <OtherPage />
         )}
@@ -2005,11 +2150,12 @@ const fetchMatches = async (day = 'today') => {
 
       <View style={styles.bottomNav}>
         {tabs.map((item, index) => {
-          const icons = ['⌂', '⚽', '📺', '🏆', '♙'];
+          const icons = ['⌂', '⚽', '★', '📺', '🏆', '♙'];
           const active = tab === item;
           const labels = [
             'الرئيسية',
             'المباريات',
+            'المفضلة',
             'البث',
             'البطولات',
             'حسابي',
