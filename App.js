@@ -272,6 +272,31 @@ export default function App() {
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
 
+  const translateFixtureStatus = (code) => {
+    const statuses = {
+      NS: 'لم تبدأ بعد',
+      TBD: 'موعد المباراة غير محدد',
+      '1H': 'الشوط الأول',
+      HT: 'استراحة بين الشوطين',
+      '2H': 'الشوط الثاني',
+      ET: 'وقت إضافي',
+      BT: 'استراحة قبل الوقت الإضافي',
+      P: 'ركلات الترجيح',
+      SUSP: 'معلّقة',
+      INT: 'توقفت مؤقتًا',
+      FT: 'انتهت',
+      AET: 'انتهت بعد وقت إضافي',
+      PEN: 'انتهت بركلات الترجيح',
+      PST: 'تأجلت',
+      CANC: 'أُلغيت',
+      ABD: 'توقفت',
+      AWD: 'فوز اعتباري',
+      WO: 'فوز بالانسحاب',
+      LIVE: 'مباشرة',
+    };
+
+    return statuses[code] || '';
+  };
 
   const findMatchingFixture = async (home, away, date) => {
     try {
@@ -637,6 +662,23 @@ const fetchMatches = async (day = 'today') => {
       liveUpdateInProgressRef.current = true;
 
       try {
+        try {
+          const statusResponse = await fetch(
+            `${STATS_API_URL}fixtures?id=${fixtureId}`
+          );
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            const latestStatus = statusData.data?.response?.[0]?.fixture?.status?.short;
+
+            if (latestStatus) {
+              setFixtureStatus(latestStatus);
+            }
+          }
+        } catch (statusError) {
+          // لا نوقف تحديث الأحداث إذا تعذر جلب الحالة
+        }
+
         const response = await fetch(
           `${STATS_API_URL}fixtures/events?fixture=${fixtureId}`
         );
@@ -1705,7 +1747,7 @@ const fetchMatches = async (day = 'today') => {
               {selectedMatch.league || 'بطولة غير محددة'}
             </Text>
             <Text style={{ color: GREEN, textAlign: 'center', fontWeight: '800', marginBottom: 20 }}>
-              {selectedMatch.status || 'موعد المباراة'} • {selectedMatch.time || '--:--'}
+              {translateFixtureStatus(fixtureStatus) || selectedMatch.status || 'موعد المباراة'} • {selectedMatch.time || '--:--'}
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' }}>
