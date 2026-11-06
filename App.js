@@ -1790,6 +1790,74 @@ const fetchMatches = async (day = 'today') => {
               )}
             </View>
 
+
+{matchStats.length === 2 ? (() => {
+  const getMetric = (team, pattern) => {
+    const item = (team.statistics || []).find(stat => pattern.test(String(stat.type || '')));
+    if (!item || item.value == null || item.value === '--') return null;
+    const value = Number(String(item.value).replace('%', '').replace(',', '.'));
+    return Number.isFinite(value) ? value : null;
+  };
+
+  const definitions = [
+    { name: 'إجمالي التسديدات', pattern: /^total shots$/i, weight: 1 },
+    { name: 'التسديدات على المرمى', pattern: /shots on goal|shots on target/i, weight: 2 },
+    { name: 'الركنيات', pattern: /corner kicks/i, weight: 1.5 },
+    { name: 'التسديدات داخل المنطقة', pattern: /shots insidebox/i, weight: 1.5 },
+  ];
+
+  const factors = definitions.map(item => ({
+    ...item,
+    first: getMetric(matchStats[0], item.pattern),
+    second: getMetric(matchStats[1], item.pattern),
+  })).filter(item => item.first !== null && item.second !== null);
+
+  if (factors.length === 0) {
+    return (
+      <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
+        <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>📈 مؤشر الضغط الهجومي</Text>
+        <Text style={{ color: MUTED, textAlign: 'center', marginTop: 10 }}>لا تتوفر بيانات هجومية مشتركة كافية لحساب المؤشر.</Text>
+      </View>
+    );
+  }
+
+  const score1 = factors.reduce((sum, item) => sum + item.first * item.weight, 0);
+  const score2 = factors.reduce((sum, item) => sum + item.second * item.weight, 0);
+  const total = score1 + score2;
+  const percent1 = total > 0 ? score1 / total * 100 : 50;
+  const percent2 = 100 - percent1;
+  const winner = score1 === score2 ? 0 : score1 > score2 ? 1 : 2;
+
+  return (
+    <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
+      <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 6 }}>📈 مؤشر الضغط الهجومي</Text>
+      <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginBottom: 14 }}>مؤشر تقديري محسوب من إحصائيات المباراة المتاحة</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+        <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'left', fontWeight: '800' }}>{matchStats[0].team?.name || 'الفريق الأول'}</Text>
+        <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontWeight: '800' }}>{matchStats[1].team?.name || 'الفريق الثاني'}</Text>
+      </View>
+      <View style={{ flexDirection: 'row', height: 13, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B' }}>
+        <View style={{ width: percent1 + '%', backgroundColor: winner === 1 ? GREEN : '#668B70' }} />
+        <View style={{ width: percent2 + '%', backgroundColor: winner === 2 ? GREEN : '#668B70' }} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 }}>
+        <Text style={{ color: GREEN, fontWeight: '900' }}>{Math.round(percent1)}%</Text>
+        <Text style={{ color: GREEN, fontWeight: '900' }}>{Math.round(percent2)}%</Text>
+      </View>
+      <Text style={{ color: winner === 0 ? MUTED : GREEN, textAlign: 'center', fontWeight: '900', marginBottom: 10 }}>
+        {winner === 0 ? 'الضغط الهجومي متعادل حسب البيانات المتاحة' : 'ضغط هجومي أكبر: ' + (matchStats[winner - 1].team?.name || 'الفريق')}
+      </Text>
+      {factors.map((item, index) => (
+        <View key={item.name} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: 1, borderTopColor: '#293A30' }}>
+          <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'left' }}>{item.first}</Text>
+          <Text style={{ color: MUTED, flex: 2, textAlign: 'center' }}>{item.name}</Text>
+          <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right' }}>{item.second}</Text>
+        </View>
+      ))}
+    </View>
+  );
+})() : null}
+
 <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 12, marginBottom: 8 }}>
   <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>أحداث المباراة</Text>
   {matchEvents.length > 0 ? matchEvents.map((event, index) => {
