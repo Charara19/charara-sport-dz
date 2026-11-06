@@ -1858,6 +1858,101 @@ const fetchMatches = async (day = 'today') => {
   );
 })() : null}
 
+
+{(() => {
+  const periods = [
+    { label: '0–15', min: 0, max: 15 },
+    { label: '16–30', min: 16, max: 30 },
+    { label: '31–45+', min: 31, max: 45 },
+    { label: '46–60', min: 46, max: 60 },
+    { label: '61–75', min: 61, max: 75 },
+    { label: '76–90+', min: 76, max: Infinity },
+  ];
+
+  const firstTeam = matchStats[0]?.team || {};
+  const secondTeam = matchStats[1]?.team || {};
+
+  const getTeamIndex = event => {
+    const id = event.team?.id;
+    const name = String(event.team?.name || '');
+
+    if (id != null && String(id) === String(firstTeam.id)) return 0;
+    if (id != null && String(id) === String(secondTeam.id)) return 1;
+    if (name && name === String(firstTeam.name || '')) return 0;
+    if (name && name === String(secondTeam.name || '')) return 1;
+    return -1;
+  };
+
+  const getSymbol = event => {
+    const type = String(event.type || '');
+    const detail = String(event.detail || '');
+    if (/goal/i.test(type)) return '⚽';
+    if (/card/i.test(type)) return /red/i.test(detail) ? '🟥' : '🟨';
+    if (/subst/i.test(type)) return '🔄';
+    return '•';
+  };
+
+  const events = matchEvents.filter(event =>
+    Number.isFinite(Number(event.time?.elapsed))
+  );
+
+  return (
+    <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
+      <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 6 }}>
+        📊 توزيع أحداث المباراة حسب الدقائق
+      </Text>
+      <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginBottom: 14 }}>
+        توزيع الأحداث المسجلة فعلياً خلال فترات المباراة
+      </Text>
+
+      {events.length > 0 ? periods.map(period => {
+        const periodEvents = events.filter(event => {
+          const minute = Number(event.time.elapsed);
+          return minute >= period.min && minute <= period.max;
+        });
+
+        const firstCount = periodEvents.filter(event => getTeamIndex(event) === 0).length;
+        const secondCount = periodEvents.filter(event => getTeamIndex(event) === 1).length;
+        const unknownCount = periodEvents.length - firstCount - secondCount;
+        const total = periodEvents.length;
+
+        return (
+          <View key={period.label} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
+              <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>{period.label} دقيقة</Text>
+              <Text style={{ color: MUTED, fontSize: 11 }}>{total} حدث</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', height: 10, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B' }}>
+              <View style={{ width: total ? (firstCount / total * 100) + '%' : '0%', backgroundColor: GREEN }} />
+              <View style={{ width: total ? (secondCount / total * 100) + '%' : '0%', backgroundColor: '#668B70' }} />
+              <View style={{ width: total ? (unknownCount / total * 100) + '%' : '0%', backgroundColor: '#A0A0A0' }} />
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Text style={{ color: GREEN, fontSize: 11 }}>{firstTeam.name || 'الفريق الأول'}: {firstCount}</Text>
+              <Text style={{ color: '#A0A0A0', fontSize: 11 }}>غير محدد: {unknownCount}</Text>
+              <Text style={{ color: '#9DBCA4', fontSize: 11 }}>{secondTeam.name || 'الفريق الثاني'}: {secondCount}</Text>
+            </View>
+
+            {total > 0 ? (
+              <Text style={{ color: '#FFFFFF', textAlign: 'center', marginTop: 7, fontSize: 13 }}>
+                {periodEvents.map((event, index) =>
+                  getSymbol(event) + ' ' + event.time.elapsed + (event.time.extra ? '+' + event.time.extra : '') + "'"
+                ).join('   ')}
+              </Text>
+            ) : null}
+          </View>
+        );
+      }) : (
+        <Text style={{ color: MUTED, textAlign: 'center' }}>
+          لا توجد أحداث مسجلة لعرضها في الرسم البياني حتى الآن.
+        </Text>
+      )}
+    </View>
+  );
+})()}
+
 <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 12, marginBottom: 8 }}>
   <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>أحداث المباراة</Text>
   {matchEvents.length > 0 ? matchEvents.map((event, index) => {
