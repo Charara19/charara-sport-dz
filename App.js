@@ -408,6 +408,17 @@ const fetchMatches = async (day = 'today') => {
                   ? null
                   : Number(rawRating),
                 minutesPlayed: Number(statistics.games?.minutes || 0),
+                playerStats: {
+                  goals: statistics.goals?.total ?? 0,
+                  assists: statistics.goals?.assists ?? 0,
+                  shots: statistics.shots?.total ?? 0,
+                  shotsOnTarget: statistics.shots?.on ?? 0,
+                  passes: statistics.passes?.total ?? 0,
+                  passAccuracy: statistics.passes?.accuracy ?? null,
+                  tackles: statistics.tackles?.total ?? 0,
+                  yellowCards: statistics.cards?.yellow ?? 0,
+                  redCards: statistics.cards?.red ?? 0,
+                },
               };
             })
           ).filter(player =>
@@ -1569,6 +1580,12 @@ const fetchMatches = async (day = 'today') => {
         <Text style={{ color: MUTED, fontSize: 12, marginTop: 4 }}>
           {matchPlayerRatings[0].minutesPlayed} دقيقة لعب
         </Text>
+        <Text style={{ color: '#D5E5D9', fontSize: 11, textAlign: 'center', marginTop: 10, lineHeight: 23 }}>
+          ⚽ أهداف: {matchPlayerRatings[0].playerStats?.goals ?? '--'}  •  🅰️ حاسمة: {matchPlayerRatings[0].playerStats?.assists ?? '--'}
+          {"\n"}🎯 تسديدات: {matchPlayerRatings[0].playerStats?.shotsOnTarget ?? '--'}/{matchPlayerRatings[0].playerStats?.shots ?? '--'}  •  📊 تمريرات: {matchPlayerRatings[0].playerStats?.passes ?? '--'}
+          {"\n"}دقة التمرير: {matchPlayerRatings[0].playerStats?.passAccuracy == null ? '--' : matchPlayerRatings[0].playerStats.passAccuracy + '%'}  •  🛡️ افتكاكات: {matchPlayerRatings[0].playerStats?.tackles ?? '--'}
+          {"\n"}🟨 {matchPlayerRatings[0].playerStats?.yellowCards ?? '--'}  •  🟥 {matchPlayerRatings[0].playerStats?.redCards ?? '--'}
+        </Text>
       </View>
 
       {matchPlayerRatings.length > 1 ? (
@@ -1587,6 +1604,11 @@ const fetchMatches = async (day = 'today') => {
                 </Text>
                 <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 3 }}>
                   {item.teamName} • {item.minutesPlayed} دقيقة
+                </Text>
+                <Text style={{ color: '#AFC2B5', fontSize: 10, textAlign: 'right', marginTop: 5, lineHeight: 19 }}>
+                  ⚽ {item.playerStats?.goals ?? '--'}  •  🅰️ {item.playerStats?.assists ?? '--'}  •  🎯 {item.playerStats?.shotsOnTarget ?? '--'}/{item.playerStats?.shots ?? '--'}
+                  {"\n"}📊 {item.playerStats?.passes ?? '--'} تمريرة  •  دقة {item.playerStats?.passAccuracy == null ? '--' : item.playerStats.passAccuracy + '%'}  •  🛡️ {item.playerStats?.tackles ?? '--'}
+                  {"\n"}🟨 {item.playerStats?.yellowCards ?? '--'}  •  🟥 {item.playerStats?.redCards ?? '--'}
                 </Text>
               </View>
               <Text style={{ color: GREEN, fontWeight: '900', fontSize: 16, marginRight: 10 }}>
