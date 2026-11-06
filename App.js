@@ -177,6 +177,8 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [pushStatus, setPushStatus] = useState('لم يتم التسجيل بعد');
   const previousEventsRef = useRef({});
+  const matchesRequestInProgressRef = useRef(false);
+  const liveUpdateInProgressRef = useRef(false);
   const currentFixtureIdRef = useRef(null);
   const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
   const [streamUrl, setStreamUrl] = useState('');
@@ -377,6 +379,8 @@ export default function App() {
 };
 
 const fetchMatches = async (day = 'today') => {
+    if (matchesRequestInProgressRef.current) return;
+    matchesRequestInProgressRef.current = true;
     setMatchesLoading(true);
     setMatchesError('');
 
@@ -396,6 +400,7 @@ const fetchMatches = async (day = 'today') => {
     } catch (error) {
       setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
     } finally {
+      matchesRequestInProgressRef.current = false;
       setMatchesLoading(false);
     }
   };
@@ -611,8 +616,10 @@ const fetchMatches = async (day = 'today') => {
     }
 
     const timer = setInterval(async () => {
+      if (liveUpdateInProgressRef.current) return;
       const fixtureId = currentFixtureIdRef.current;
       if (!fixtureId) return;
+      liveUpdateInProgressRef.current = true;
 
       try {
         const response = await fetch(
@@ -662,6 +669,8 @@ const fetchMatches = async (day = 'today') => {
         }
       } catch (error) {
         // تجاهل أخطاء التحديث المؤقتة
+      } finally {
+        liveUpdateInProgressRef.current = false;
       }
     }, 60000);
 
