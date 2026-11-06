@@ -1713,28 +1713,55 @@ const fetchMatches = async (day = 'today') => {
               )}
             </View>
 
-            <View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 18, marginBottom: 8 }}>
-              <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
-                إحصائيات المباراة
+            <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 18, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
+              <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 14 }}>
+                📊 مقارنة أداء الفريقين
               </Text>
               {statsLoading ? (
                 <Text style={{ color: MUTED, textAlign: 'center' }}>جارٍ تحميل الإحصائيات...</Text>
               ) : matchStats.length === 2 ? (
-                matchStats[0].statistics.map((stat, index) => {
-                  const other = matchStats[1].statistics.find(item => item.type === stat.type);
-                  const value1 = stat.value ?? '--';
-                  const value2 = other?.value ?? '--';
-                  return (
-                    <View key={stat.type || index} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
-                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '700' }}>{stat.type}</Text>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
-                        <Text style={{ color: GREEN, fontWeight: '900' }}>{String(value1)}</Text>
-                        <Text style={{ color: '#FFFFFF' }}>—</Text>
-                        <Text style={{ color: GREEN, fontWeight: '900' }}>{String(value2)}</Text>
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <Text style={{ color: GREEN, fontWeight: '900', flex: 1, textAlign: 'left' }}>{matchStats[0].team?.name || 'الفريق الأول'}</Text>
+                    <Text style={{ color: GREEN, fontWeight: '900', flex: 1, textAlign: 'right' }}>{matchStats[1].team?.name || 'الفريق الثاني'}</Text>
+                  </View>
+                  {matchStats[0].statistics.map((stat, index) => {
+                    const other = matchStats[1].statistics.find(item => item.type === stat.type);
+                    const raw1 = stat.value;
+                    const raw2 = other?.value;
+                    const numberValue = value => {
+                      if (value == null || value === '--') return null;
+                      const parsed = Number(String(value).replace('%', '').replace(',', '.'));
+                      return Number.isFinite(parsed) ? parsed : null;
+                    };
+                    const n1 = numberValue(raw1);
+                    const n2 = numberValue(raw2);
+                    const comparable = n1 !== null && n2 !== null && n1 + n2 > 0;
+                    const percent1 = comparable ? (n1 / (n1 + n2)) * 100 : 50;
+                    const percent2 = 100 - percent1;
+                    const lowerIsBetter = /fouls|offsides|yellow cards|red cards|أخطاء|تسلل|بطاقات/i.test(String(stat.type));
+                    const winner = !comparable || n1 === n2 ? 0 : ((n1 > n2) !== lowerIsBetter ? 1 : 2);
+
+                    return (
+                      <View key={stat.type || index} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '800', marginBottom: 9 }}>{stat.type}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ color: winner === 1 ? GREEN : '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{raw1 ?? '--'} {winner === 1 ? '▲' : ''}</Text>
+                          <Text style={{ color: winner === 2 ? GREEN : '#FFFFFF', fontWeight: '900', fontSize: 15 }}>{raw2 ?? '--'} {winner === 2 ? '▲' : ''}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', height: 8, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B', marginTop: 8 }}>
+                          <View style={{ width: `${percent1}%`, backgroundColor: winner === 1 ? GREEN : '#668B70' }} />
+                          <View style={{ width: `${percent2}%`, backgroundColor: winner === 2 ? GREEN : '#668B70' }} />
+                        </View>
+                        {winner !== 0 ? (
+                          <Text style={{ color: GREEN, textAlign: 'center', fontSize: 10, marginTop: 5 }}>
+                            {winner === 1 ? 'الأفضل: ' + (matchStats[0].team?.name || 'الفريق الأول') : 'الأفضل: ' + (matchStats[1].team?.name || 'الفريق الثاني')}
+                          </Text>
+                        ) : null}
                       </View>
-                    </View>
-                  );
-                })
+                    );
+                  })}
+                </>
               ) : (
                 <Text style={{ color: MUTED, textAlign: 'center', fontWeight: '700' }}>
                   {statsError || 'الإحصائيات غير متاحة حاليًا لهذه المباراة'}
