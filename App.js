@@ -1480,32 +1480,81 @@ const fetchMatches = async (day = 'today') => {
 
     useEffect(() => {
       let active = true;
-      const leagueId = leagueIds[selectedLeague];
-
       setStandings([]);
       setStandingsError('');
+      setStandingsLoading(true);
 
-      if (!leagueId) {
+      const isAfcon = selectedLeague === 'كأس أمم إفريقيا';
+      const leagueId = leagueIds[selectedLeague];
+
+      if (!isAfcon && !leagueId) {
         setStandingsLoading(false);
         setStandingsError('الترتيب غير متوفر لهذه البطولة من مصدر البيانات الحالي.');
         return () => { active = false; };
       }
 
-      setStandingsLoading(true);
+      const request = isAfcon
+        ? fetch('https://site.api.espn.com/apis/v2/sports/soccer/caf.nations/standings')
+            .then(async response => {
+              const payload = await response.json();
+              if (!response.ok || !Array.isArray(payload.children)) {
+                throw new Error('AFCON standings request failed');
+              }
 
-      fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
-        .then(async response => {
-          const payload = await response.json();
+              const rows = payload.children.flatMap(group => {
+                const entries = group.standings?.entries || [];
+                const groupRows = entries.map((entry, index) => {
+                  const stats = Object.fromEntries(
+                    (entry.stats || []).map(item => [
+                      item.name,
+                      item.displayValue ?? item.value ?? '0'
+                    ])
+                  );
 
-          if (!response.ok || !payload.success) {
-            throw new Error('Standings request failed');
-          }
+                  const number = name => {
+                    const value = Number.parseFloat(
+                      String(stats[name] ?? '0').replace('+', '')
+                    );
+                    return Number.isFinite(value) ? value : 0;
+                  };
 
-          if (!Array.isArray(payload.data)) {
-            throw new Error('Invalid standings data');
-          }
+                  return {
+                    group: group.name,
+                    position: number('rank') || index + 1,
+                    team: {
+                      id: entry.team?.id,
+                      name: entry.team?.displayName || entry.team?.name || '—',
+                      short_name: entry.team?.shortDisplayName || entry.team?.abbreviation || entry.team?.name || '—',
+                    },
+                    played: number('gamesPlayed'),
+                    won: number('wins'),
+                    draw: number('ties'),
+                    lost: number('losses'),
+                    goals_for: number('pointsFor'),
+                    goals_against: number('pointsAgainst'),
+                    goal_difference: number('pointDifferential'),
+                    points: number('points'),
+                  };
+                });
 
-          if (active) setStandings(payload.data);
+                return groupRows.sort((a, b) => a.position - b.position);
+              });
+
+              if (!rows.length) throw new Error('No AFCON standings');
+              return rows;
+            })
+        : fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
+            .then(async response => {
+              const payload = await response.json();
+              if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
+                throw new Error('Standings request failed');
+              }
+              return payload.data;
+            });
+
+      request
+        .then(data => {
+          if (active) setStandings(data);
         })
         .catch(() => {
           if (active) {
@@ -1528,6 +1577,7 @@ const fetchMatches = async (day = 'today') => {
       { name: 'الدوري الإيطالي', country: 'إيطاليا', icon: '🇮🇹', color: '#60A5FA' },
       { name: 'الدوري الفرنسي', country: 'فرنسا', icon: '🇫🇷', color: '#818CF8' },
       { name: 'الدوري الجزائري', country: 'الجزائر', icon: '🇩🇿', color: '#34D399' },
+      { name: 'كأس أمم إفريقيا', country: 'إفريقيا • نسخة 2025', icon: '🏆', color: '#FBBF24' },
     ];
 
     if (tab === 'البطولات') {
@@ -1635,32 +1685,38 @@ const fetchMatches = async (day = 'today') => {
                   </View>
 
                   {standings.map((row, index) => (
-                    <View
-                      key={String(row.team?.id || row.position || index)}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingVertical: 13,
-                        paddingHorizontal: 5,
-                        borderBottomWidth: 1,
-                        borderBottomColor: '#26372D',
-                      }}
-                    >
-                      <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
-                        {row.position ?? index + 1}
-                      </Text>
-                      <Text numberOfLines={1} style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
-                        {row.team?.short_name || row.team?.name || '—'}
-                      </Text>
-                      <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 12 }}>
-                        {row.played ?? 0}
-                      </Text>
-                      <Text style={{ color: '#FFFFFF', width: 38, textAlign: 'center', fontSize: 12 }}>
-                        {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
-                      </Text>
-                      <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
-                        {row.points ?? 0}
-                      </Text>
+                    <View key={`${row.group || selectedLeague}-${row.team?.id || row.position || index}`}>
+                      {row.group && (index === 0 || standings[index - 1]?.group !== row.group) ? (
+                        <Text style={{ color: '#FBBF24', fontSize: 14, fontWeight: '900', textAlign: 'right', marginTop: 16, marginBottom: 5 }}>
+                          {row.group}
+                        </Text>
+                      ) : null}
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 13,
+                          paddingHorizontal: 5,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#26372D',
+                        }}
+                      >
+                        <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
+                          {row.position ?? index + 1}
+                        </Text>
+                        <Text numberOfLines={1} style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                          {row.team?.short_name || row.team?.name || '—'}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 12 }}>
+                          {row.played ?? 0}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', width: 38, textAlign: 'center', fontSize: 12 }}>
+                          {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
+                        </Text>
+                        <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
+                          {row.points ?? 0}
+                        </Text>
+                      </View>
                     </View>
                   ))}
                 </View>
