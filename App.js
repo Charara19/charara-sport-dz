@@ -1969,6 +1969,150 @@ const fetchMatches = async (day = 'today') => {
                       المدرب: {lineup.coach?.name || 'غير متوفر'}
                     </Text>
 
+
+                    {(() => {
+                      const pitchPlayers = (lineup.startXI || [])
+                        .map((item, index) => {
+                          const player = item.player || {};
+                          const parts = String(player.grid || '').split(':').map(Number);
+                          return {
+                            player,
+                            index,
+                            row: parts[0],
+                            col: parts[1],
+                          };
+                        })
+                        .filter(p =>
+                          Number.isFinite(p.row) &&
+                          Number.isFinite(p.col) &&
+                          p.row >= 1 &&
+                          p.col >= 1
+                        );
+
+                      if (pitchPlayers.length === 0) {
+                        return (
+                          <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 12 }}>
+                            مواقع اللاعبين على الملعب غير متوفرة من مصدر البيانات.
+                          </Text>
+                        );
+                      }
+
+                      const maxRow = Math.max(...pitchPlayers.map(p => p.row));
+                      const maxCol = Math.max(...pitchPlayers.map(p => p.col));
+
+                      return (
+                        <View style={{
+                          height: 290,
+                          backgroundColor: '#126B3B',
+                          borderWidth: 2,
+                          borderColor: '#A8D5B5',
+                          borderRadius: 12,
+                          marginBottom: 18,
+                          overflow: 'hidden',
+                          position: 'relative',
+                        }}>
+                          <View style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: 0,
+                            right: 0,
+                            height: 1,
+                            backgroundColor: '#A8D5B5',
+                          }} />
+                          <View style={{
+                            position: 'absolute',
+                            width: 76,
+                            height: 76,
+                            borderRadius: 38,
+                            borderWidth: 1,
+                            borderColor: '#A8D5B5',
+                            top: '37%',
+                            left: '50%',
+                            marginLeft: -38,
+                          }} />
+                          <View style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: '25%',
+                            right: '25%',
+                            height: 28,
+                            borderWidth: 1,
+                            borderTopWidth: 0,
+                            borderColor: '#A8D5B5',
+                          }} />
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: '25%',
+                            right: '25%',
+                            height: 28,
+                            borderWidth: 1,
+                            borderBottomWidth: 0,
+                            borderColor: '#A8D5B5',
+                          }} />
+
+                          {pitchPlayers.map((entry) => {
+                            const left = maxCol === 1
+                              ? 50
+                              : 8 + ((entry.col - 1) / (maxCol - 1)) * 84;
+                            const top = maxRow === 1
+                              ? 50
+                              : 8 + ((entry.row - 1) / (maxRow - 1)) * 84;
+
+                            return (
+                              <View
+                                key={entry.player.id || entry.index}
+                                style={{
+                                  position: 'absolute',
+                                  left: `${left}%`,
+                                  top: `${top}%`,
+                                  width: 58,
+                                  marginLeft: -29,
+                                  marginTop: -15,
+                                  alignItems: 'center',
+                                  zIndex: 2,
+                                }}
+                              >
+                                <View style={{
+                                  minWidth: 27,
+                                  height: 27,
+                                  borderRadius: 15,
+                                  backgroundColor: '#FFFFFF',
+                                  borderWidth: 2,
+                                  borderColor: '#D8F5DF',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}>
+                                  <Text style={{
+                                    color: '#087A48',
+                                    fontSize: 11,
+                                    fontWeight: '900',
+                                  }}>
+                                    {entry.player.number ?? entry.index + 1}
+                                  </Text>
+                                </View>
+                                <Text
+                                  numberOfLines={1}
+                                  style={{
+                                    color: '#FFFFFF',
+                                    fontSize: 9,
+                                    fontWeight: '900',
+                                    backgroundColor: '#084D2B',
+                                    paddingHorizontal: 3,
+                                    borderRadius: 4,
+                                    maxWidth: 58,
+                                    textAlign: 'center',
+                                  }}
+                                >
+                                  {entry.player.name || 'لاعب'}
+                                </Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      );
+                    })()}
+
                     <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
                       التشكيلة الأساسية
                     </Text>
