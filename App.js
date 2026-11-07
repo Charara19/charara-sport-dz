@@ -1491,9 +1491,10 @@ const fetchMatches = async (day = 'today') => {
       setStandingsLoading(true);
 
       const isAfcon = selectedLeague === 'كأس أمم إفريقيا';
+      const isAlgerian = selectedLeague === 'الدوري الجزائري';
       const leagueId = leagueIds[selectedLeague];
 
-      if (!isAfcon && !leagueId) {
+      if (!isAfcon && !isAlgerian && !leagueId) {
         setStandingsLoading(false);
         setStandingsError('الترتيب غير متوفر لهذه البطولة من مصدر البيانات الحالي.');
         return () => { active = false; };
@@ -1549,8 +1550,37 @@ const fetchMatches = async (day = 'today') => {
               if (!rows.length) throw new Error('No AFCON standings');
               return rows;
             })
-        : fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
-            .then(async response => {
+        : isAlgerian
+          ? fetch('https://charara-standings-api.hasnnoui73.workers.dev/standings?league=186&season=2024')
+              .then(async response => {
+                const payload = await response.json();
+                const groups = payload.data?.response || [];
+                const entries = groups.flatMap(item => item.league?.standings || []);
+
+                if (!response.ok || !payload.success || !entries.length) {
+                  throw new Error('Algerian standings unavailable');
+                }
+
+                return entries.map(row => ({
+                  group: 'الدوري الجزائري • موسم 2024',
+                  position: row.rank,
+                  team: {
+                    id: row.team?.id,
+                    name: row.team?.name || '—',
+                    short_name: row.team?.name || '—',
+                  },
+                  played: row.all?.played ?? 0,
+                  won: row.all?.win ?? 0,
+                  draw: row.all?.draw ?? 0,
+                  lost: row.all?.lose ?? 0,
+                  goals_for: row.all?.goals?.for ?? 0,
+                  goals_against: row.all?.goals?.against ?? 0,
+                  goal_difference: row.goalsDiff ?? 0,
+                  points: row.points ?? 0,
+                }));
+              })
+          : fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
+              .then(async response => {
               const payload = await response.json();
               if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
                 throw new Error('Standings request failed');
@@ -1582,7 +1612,7 @@ const fetchMatches = async (day = 'today') => {
       { name: 'الدوري الألماني', country: 'ألمانيا', icon: '🇩🇪', color: '#FBBF24' },
       { name: 'الدوري الإيطالي', country: 'إيطاليا', icon: '🇮🇹', color: '#60A5FA' },
       { name: 'الدوري الفرنسي', country: 'فرنسا', icon: '🇫🇷', color: '#818CF8' },
-      { name: 'الدوري الجزائري', country: 'الجزائر', icon: '🇩🇿', color: '#34D399' },
+      { name: 'الدوري الجزائري', country: 'الجزائر • موسم 2024', icon: '🇩🇿', color: '#34D399' },
       { name: 'الدوري الأوروبي', country: 'أوروبا', icon: '🏆', color: '#F97316' },
       { name: 'دوري المؤتمر الأوروبي', country: 'أوروبا', icon: '🏆', color: '#A3A3A3' },
       { name: 'دوري أبطال إفريقيا', country: 'إفريقيا', icon: '🏆', color: '#FBBF24' },
