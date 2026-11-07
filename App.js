@@ -14,6 +14,7 @@ import {
   Linking,
   Image,
   Alert,
+  Modal,
 } from 'react-native';
 
 import * as Speech from 'expo-speech';
@@ -164,6 +165,7 @@ export default function App() {
   const [matchDay, setMatchDay] = useState('today');
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [matchStats, setMatchStats] = useState([]);
   const [matchEvents, setMatchEvents] = useState([]);
   const [matchLineups, setMatchLineups] = useState([]);
@@ -2105,8 +2107,17 @@ const fetchMatches = async (day = 'today') => {
                             const playerNumber = entry.player.number ?? entry.index + 1;
 
                             return (
-                              <View
+                              <TouchableOpacity
                                 key={entry.player.id || entry.index}
+                                activeOpacity={0.8}
+                                onPress={() => setSelectedPlayer({
+                                  ...entry.player,
+                                  photo: playerPhoto,
+                                  teamName: lineup.team?.name || '',
+                                  rating: ratingPlayer?.playerRating ?? null,
+                                  stats: ratingPlayer?.playerStats || null,
+                                  minutesPlayed: ratingPlayer?.minutesPlayed ?? 0,
+                                })}
                                 style={{
                                   position: 'absolute',
                                   left: `${left}%`,
@@ -2180,7 +2191,7 @@ const fetchMatches = async (day = 'today') => {
                                 >
                                   {entry.player.name || 'لاعب'}
                                 </Text>
-                              </View>
+                              </TouchableOpacity>
                             );
                           })}
                         </View>
@@ -2536,6 +2547,206 @@ const fetchMatches = async (day = 'today') => {
           CHARARA SPORT DZ © 2026
         </Text>
       </ScrollView>
+
+      {/* CHARARA_PLAYER_PROFILE_MODAL */}
+      <Modal
+        visible={!!selectedPlayer}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setSelectedPlayer(null)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.82)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 18,
+        }}>
+          <View style={{
+            width: '100%',
+            maxWidth: 430,
+            maxHeight: '88%',
+            backgroundColor: '#101A16',
+            borderRadius: 22,
+            borderWidth: 1,
+            borderColor: '#245B42',
+            padding: 18,
+          }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <TouchableOpacity
+                onPress={() => setSelectedPlayer(null)}
+                style={{
+                  alignSelf: 'flex-end',
+                  backgroundColor: '#263B31',
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 15 }}>
+                  ✕ إغلاق
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ alignItems: 'center', marginBottom: 18 }}>
+                {selectedPlayer?.photo ? (
+                  <Image
+                    source={{ uri: selectedPlayer.photo }}
+                    style={{
+                      width: 105,
+                      height: 105,
+                      borderRadius: 53,
+                      borderWidth: 3,
+                      borderColor: GREEN,
+                      backgroundColor: '#263B31',
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={{
+                    width: 105,
+                    height: 105,
+                    borderRadius: 53,
+                    backgroundColor: '#263B31',
+                    borderWidth: 3,
+                    borderColor: GREEN,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{ color: GREEN, fontSize: 38, fontWeight: '900' }}>
+                      {selectedPlayer?.number ?? '⚽'}
+                    </Text>
+                  </View>
+                )}
+
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 21,
+                  fontWeight: '900',
+                  textAlign: 'center',
+                  marginTop: 12,
+                }}>
+                  {selectedPlayer?.name || 'لاعب'}
+                </Text>
+
+                <Text style={{
+                  color: '#A7C5B4',
+                  fontSize: 14,
+                  fontWeight: '700',
+                  marginTop: 5,
+                }}>
+                  {selectedPlayer?.teamName || 'الفريق'}
+                </Text>
+
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 14,
+                  fontWeight: '800',
+                  marginTop: 7,
+                }}>
+                  رقم القميص: {selectedPlayer?.number ?? '--'}  •  المركز: {selectedPlayer?.pos || '--'}
+                </Text>
+
+                <View style={{
+                  backgroundColor: '#173D2B',
+                  borderRadius: 14,
+                  paddingHorizontal: 24,
+                  paddingVertical: 10,
+                  marginTop: 12,
+                }}>
+                  <Text style={{ color: '#B7D9C5', fontSize: 12, textAlign: 'center' }}>
+                    تقييم اللاعب
+                  </Text>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 27,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                  }}>
+                    {selectedPlayer?.rating != null
+                      ? Number(selectedPlayer.rating).toFixed(1) + ' / 10'
+                      : '-- / 10'}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={{
+                color: GREEN,
+                fontSize: 16,
+                fontWeight: '900',
+                textAlign: 'right',
+                marginBottom: 12,
+              }}>
+                إحصائيات اللاعب
+              </Text>
+
+              <View style={{
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+              }}>
+                {[
+                  ['الأهداف', selectedPlayer?.stats?.goals],
+                  ['التمريرات الحاسمة', selectedPlayer?.stats?.assists],
+                  ['التسديدات', selectedPlayer?.stats?.shots],
+                  ['على المرمى', selectedPlayer?.stats?.shotsOnTarget],
+                  ['التمريرات', selectedPlayer?.stats?.passes],
+                  ['دقة التمرير', selectedPlayer?.stats?.passAccuracy != null
+                    ? selectedPlayer.stats.passAccuracy + '%'
+                    : null],
+                  ['التدخلات', selectedPlayer?.stats?.tackles],
+                  ['بطاقات صفراء', selectedPlayer?.stats?.yellowCards],
+                  ['بطاقات حمراء', selectedPlayer?.stats?.redCards],
+                  ['الدقائق', selectedPlayer?.minutesPlayed],
+                ].map((item, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      width: '48%',
+                      backgroundColor: '#1A2B23',
+                      borderRadius: 12,
+                      padding: 12,
+                      marginBottom: 9,
+                      borderWidth: 1,
+                      borderColor: '#294638',
+                    }}
+                  >
+                    <Text style={{
+                      color: '#A7C5B4',
+                      fontSize: 12,
+                      textAlign: 'center',
+                      marginBottom: 6,
+                    }}>
+                      {item[0]}
+                    </Text>
+                    <Text style={{
+                      color: '#FFFFFF',
+                      fontSize: 19,
+                      fontWeight: '900',
+                      textAlign: 'center',
+                    }}>
+                      {item[1] != null ? String(item[1]) : '--'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={{
+                color: '#789889',
+                fontSize: 11,
+                textAlign: 'center',
+                marginTop: 8,
+                marginBottom: 8,
+              }}>
+                الإحصائيات المعروضة حسب البيانات المتاحة للمباراة
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
 
       <View style={styles.bottomNav}>
         {tabs.map((item, index) => {
