@@ -183,6 +183,7 @@ export default function App() {
   const liveUpdateInProgressRef = useRef(false);
   const currentFixtureIdRef = useRef(null);
   const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
+  const [selectedBroadcastCountry, setSelectedBroadcastCountry] = useState('الجزائر');
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
@@ -987,7 +988,30 @@ const fetchMatches = async (day = 'today') => {
         </View>
       ))}
 
-      {algerianChannels.map((channel) => (
+      <View style={{ backgroundColor: PANEL, padding: 14, borderRadius: 14, marginBottom: 12, borderWidth: 1, borderColor: '#205735' }}>
+        <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'right', marginBottom: 10 }}>
+          🌍 اختر بلد القنوات
+        </Text>
+        <TouchableOpacity
+          onPress={() => setSelectedBroadcastCountry('الجزائر')}
+          activeOpacity={0.8}
+          style={{
+            backgroundColor: selectedBroadcastCountry === 'الجزائر' ? '#087A48' : '#14251D',
+            padding: 12,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: GREEN,
+            alignItems: 'center'
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>🇩🇿 الجزائر</Text>
+        </TouchableOpacity>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 9 }}>
+          ستضاف دول أخرى بعد التحقق من قنواتها ومصادر البث الرسمية.
+        </Text>
+      </View>
+
+      {selectedBroadcastCountry === 'الجزائر' && algerianChannels.map((channel) => (
         <View key={channel.name} style={styles.channelCard}>
           <View style={styles.channelInfo}>
             <Text style={styles.channelIcon}>{channel.icon}</Text>
