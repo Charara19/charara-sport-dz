@@ -672,10 +672,20 @@ const fetchMatches = async (day = 'today') => {
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
-            const latestStatus = statusData.data?.response?.[0]?.fixture?.status?.short;
+            const latestFixture = statusData.data?.response?.[0];
+            const latestStatus = latestFixture?.fixture?.status?.short;
+            const homeGoals = latestFixture?.goals?.home;
+            const awayGoals = latestFixture?.goals?.away;
 
             if (latestStatus) {
               setFixtureStatus(latestStatus);
+            }
+
+            if (Number.isFinite(homeGoals) && Number.isFinite(awayGoals)) {
+              setSelectedMatch(current => {
+                if (!current) return current;
+                return { ...current, score: [homeGoals, awayGoals] };
+              });
             }
           }
         } catch (statusError) {
