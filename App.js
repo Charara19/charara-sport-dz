@@ -2011,6 +2011,21 @@ const fetchMatches = async (day = 'today') => {
                           overflow: 'hidden',
                           position: 'relative',
                         }}>
+                          {[0, 1, 2, 3, 4].map((stripe) => (
+                            <View
+                              key={`grass-${stripe}`}
+                              style={{
+                                position: 'absolute',
+                                top: `${stripe * 20}%`,
+                                left: 0,
+                                right: 0,
+                                height: '10%',
+                                backgroundColor: stripe % 2 === 0
+                                  ? '#167342'
+                                  : '#126B3B',
+                              }}
+                            />
+                          ))}
                           <View style={{
                             position: 'absolute',
                             top: '50%',
@@ -2051,13 +2066,43 @@ const fetchMatches = async (day = 'today') => {
                             borderColor: '#A8D5B5',
                           }} />
 
+                          <View style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: '39%',
+                            right: '39%',
+                            height: 10,
+                            borderWidth: 1,
+                            borderTopWidth: 0,
+                            borderColor: '#A8D5B5',
+                          }} />
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: '39%',
+                            right: '39%',
+                            height: 10,
+                            borderWidth: 1,
+                            borderBottomWidth: 0,
+                            borderColor: '#A8D5B5',
+                          }} />
+
                           {pitchPlayers.map((entry) => {
                             const left = maxCol === 1
                               ? 50
                               : 8 + ((entry.col - 1) / (maxCol - 1)) * 84;
-                            const top = maxRow === 1
+                            const rowPosition = maxRow === 1
                               ? 50
                               : 8 + ((entry.row - 1) / (maxRow - 1)) * 84;
+                            const top = lineupIndex % 2 === 0
+                              ? rowPosition
+                              : 100 - rowPosition;
+
+                            const ratingPlayer = matchPlayerRatings.find(
+                              item => String(item.player?.id) === String(entry.player.id)
+                            );
+                            const playerPhoto = ratingPlayer?.player?.photo || entry.player.photo;
+                            const playerNumber = entry.player.number ?? entry.index + 1;
 
                             return (
                               <View
@@ -2073,24 +2118,53 @@ const fetchMatches = async (day = 'today') => {
                                   zIndex: 2,
                                 }}
                               >
-                                <View style={{
-                                  minWidth: 27,
-                                  height: 27,
-                                  borderRadius: 15,
-                                  backgroundColor: '#FFFFFF',
-                                  borderWidth: 2,
-                                  borderColor: '#D8F5DF',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}>
-                                  <Text style={{
-                                    color: '#087A48',
-                                    fontSize: 11,
-                                    fontWeight: '900',
+                                {playerPhoto ? (
+                                  <View style={{ width: 34, height: 34, position: 'relative' }}>
+                                    <Image
+                                      source={{ uri: playerPhoto }}
+                                      style={{
+                                        width: 34,
+                                        height: 34,
+                                        borderRadius: 17,
+                                        borderWidth: 2,
+                                        borderColor: '#D8F5DF',
+                                        backgroundColor: '#FFFFFF',
+                                      }}
+                                    />
+                                    <View style={{
+                                      position: 'absolute',
+                                      bottom: -3,
+                                      right: -5,
+                                      minWidth: 17,
+                                      height: 17,
+                                      borderRadius: 9,
+                                      backgroundColor: '#FFFFFF',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderWidth: 1,
+                                      borderColor: '#087A48',
+                                    }}>
+                                      <Text style={{ color: '#087A48', fontSize: 9, fontWeight: '900' }}>
+                                        {playerNumber}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                ) : (
+                                  <View style={{
+                                    minWidth: 27,
+                                    height: 27,
+                                    borderRadius: 15,
+                                    backgroundColor: '#FFFFFF',
+                                    borderWidth: 2,
+                                    borderColor: '#D8F5DF',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                   }}>
-                                    {entry.player.number ?? entry.index + 1}
-                                  </Text>
-                                </View>
+                                    <Text style={{ color: '#087A48', fontSize: 11, fontWeight: '900' }}>
+                                      {playerNumber}
+                                    </Text>
+                                  </View>
+                                )}
                                 <Text
                                   numberOfLines={1}
                                   style={{
