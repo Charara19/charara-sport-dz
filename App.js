@@ -311,6 +311,8 @@ export default function App() {
 
       const aliases = {
         'ميلان': ['AC Milan'],
+        'ريال مدريد': ['Real Madrid'],
+        'فالنسيا': ['Valencia'],
         'فيرينتسفاروشي': ['Ferencvarosi TC', 'Ferencvárosi TC'],
         'كريستال بالاس': ['Crystal Palace'],
         'هوفنهايم': ['1899 Hoffenheim', 'Hoffenheim'],
@@ -349,7 +351,22 @@ export default function App() {
         'إيفرتون': ['Everton'],
         'كوفنتري سيتي': ['Coventry', 'Coventry City'],
         'إشبيلية': ['Sevilla'],
-        'ألافيس': ['Alaves', 'Deportivo Alaves']
+        'ألافيس': ['Alaves', 'Deportivo Alaves'],
+        'جنوى': ['Genoa'],
+        'سندرلاند': ['Sunderland'],
+        'تشيلسي': ['Chelsea'],
+        'إبسويتش تاون': ['Ipswich', 'Ipswich Town'],
+        'بورنموث': ['Bournemouth', 'AFC Bournemouth'],
+        'ليفربول': ['Liverpool'],
+        'برينتفورد': ['Brentford'],
+        'كولن': ['1. FC Köln', 'FC Koln', 'Koln'],
+        'مانشستر يونايتد': ['Manchester United'],
+        'أستون فيلا': ['Aston Villa'],
+        'إنتر ميلان': ['Inter', 'Internazionale'],
+        'فياريال': ['Villarreal'],
+        'سيلتا فيجو': ['Celta Vigo', 'Celta de Vigo'],
+        'ليفانتي': ['Levante UD'],
+        'فيورنتينا': ['Fiorentina']
       };
 
       const normalize = value =>
@@ -374,7 +391,7 @@ export default function App() {
         const competition =
           `${item.league?.name || ''} ${homeName} ${awayName}`;
 
-        if (/u19|u-19|u21|u-21|u17|u-17|youth|women|feminine|reserve/i.test(competition)) {
+        if (/\bu[- ]?(?:16|17|18|19|20|21|23)\b|\b(?:youth|women|woman|feminine|reserve|reserves|academy|II|III)\b|\bW\b/i.test(competition)) {
           return false;
         }
 
@@ -426,7 +443,10 @@ const fetchMatches = async (day = 'today') => {
 
       const updatedMatches = data.matches.map(match => ({
         ...match,
-        matchDate: getDateForMatchDay(day)
+        matchDate:
+          (typeof match.url === 'string'
+            ? match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0]
+            : null) || getDateForMatchDay(day)
       }));
 
       setMatches(updatedMatches);
