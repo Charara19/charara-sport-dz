@@ -101,6 +101,33 @@ const beinChannels = [
 
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
+  const [language, setLanguage] = useState("ar");
+  const languageLoadedRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadLanguage = async () => {
+      try {
+        const saved = await AsyncStorage.getItem("chararaLanguage");
+        if (mounted && ["ar", "fr", "en"].includes(saved)) {
+          setLanguage(saved);
+        }
+      } catch (error) {
+        console.log("تعذر تحميل اللغة:", error);
+      } finally {
+        if (mounted) languageLoadedRef.current = true;
+      }
+    };
+    loadLanguage();
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!languageLoadedRef.current) return;
+    AsyncStorage.setItem("chararaLanguage", language)
+      .catch(error => console.log("تعذر حفظ اللغة:", error));
+  }, [language]);
+
   const [category, setCategory] = useState('الكل');
   const [matches, setMatches] = useState([]);
   const [favoriteTeams, setFavoriteTeams] = useState([]);
@@ -1855,6 +1882,34 @@ const fetchMatches = async (day = 'today') => {
         <Text style={styles.pageDesc}>
           قريباً: حسابك الشخصي وعضوية شرارة Premium.
         </Text>
+
+        <Text style={{ color: GREEN, fontWeight: "900", marginTop: 18, marginBottom: 10 }}>
+          لغة التطبيق / App language
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 8 }}>
+          {[
+            { code: "ar", label: "العربية" },
+            { code: "fr", label: "Français" },
+            { code: "en", label: "English" }
+          ].map(item => (
+            <TouchableOpacity
+              key={item.code}
+              onPress={() => setLanguage(item.code)}
+              style={{
+                backgroundColor: language === item.code ? "#153D27" : PANEL,
+                borderWidth: 1,
+                borderColor: language === item.code ? GREEN : "#26372D",
+                paddingVertical: 11,
+                paddingHorizontal: 13,
+                borderRadius: 10
+              }}
+            >
+              <Text style={{ color: language === item.code ? GREEN : "#FFFFFF", fontWeight: "bold" }}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
         <Text style={styles.coming}>قريباً بإذن الله</Text>
                 <TouchableOpacity
                   onPress={() => setSoundEnabled(v => !v)}
