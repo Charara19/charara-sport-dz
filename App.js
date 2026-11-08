@@ -183,6 +183,7 @@ export default function App() {
   const liveUpdateInProgressRef = useRef(false);
   const currentFixtureIdRef = useRef(null);
   const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
+  const fixturesCacheRef = useRef({});
   const [selectedBroadcastCountry, setSelectedBroadcastCountry] = useState('الجزائر');
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
@@ -303,11 +304,16 @@ export default function App() {
 
   const findMatchingFixture = async (home, away, date) => {
     try {
-      const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
-      if (!response.ok) return null;
+      let fixtures = fixturesCacheRef.current[date];
 
-      const data = await response.json();
-      const fixtures = data.data?.response || [];
+      if (!fixtures) {
+        const response = await fetch(`${STATS_API_URL}fixtures?date=${date}`);
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        fixtures = data.data?.response || [];
+        fixturesCacheRef.current[date] = fixtures;
+      }
 
       const aliases = {
         'ميلان': ['AC Milan'],
