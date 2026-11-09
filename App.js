@@ -329,8 +329,10 @@ export default function App() {
     return statuses[code] || '';
   };
 
-  const findMatchingFixture = async (home, away, date) => {
+  const findMatchingFixture = async (home, away, date, localTime) => {
     try {
+      const needsPreviousUtcDate = /^00:/.test(String(localTime || ''));
+      let expectedUtcDate = date;
       let fixtures = fixturesCacheRef.current[date];
 
       if (!fixtures) {
@@ -342,7 +344,45 @@ export default function App() {
         fixturesCacheRef.current[date] = fixtures;
       }
 
+      if (needsPreviousUtcDate) {
+        const previousDate = new Date(`${date}T00:00:00Z`);
+        previousDate.setUTCDate(previousDate.getUTCDate() - 1);
+        const previousDateKey = previousDate.toISOString().slice(0, 10);
+        expectedUtcDate = previousDateKey;
+        let previousFixtures = fixturesCacheRef.current[previousDateKey];
+
+        if (!previousFixtures) {
+          const previousResponse = await fetch(`${STATS_API_URL}fixtures?date=${previousDateKey}`);
+          if (previousResponse.ok) {
+            const previousData = await previousResponse.json();
+            previousFixtures = previousData.data?.response || [];
+            fixturesCacheRef.current[previousDateKey] = previousFixtures;
+          } else {
+            previousFixtures = [];
+          }
+        }
+
+        const uniqueFixtures = new Map();
+        for (const item of [...fixtures, ...previousFixtures]) {
+          const fixtureId = item.fixture?.id;
+          if (fixtureId != null && !uniqueFixtures.has(fixtureId)) {
+            uniqueFixtures.set(fixtureId, item);
+          }
+        }
+        fixtures = [...uniqueFixtures.values()];
+      }
+
+      const timeMatch = String(localTime || '').match(/^([01][0-9]|2[0-3]):([0-5][0-9])$/);
+      const targetMinutesUtc = timeMatch
+        ? (Number(timeMatch[1]) * 60 + Number(timeMatch[2]) - 60 + 1440) % 1440
+        : null;
+
       const aliases = {
+  'لاتسيو': ['Lazio'],
+  'إلتشي': ['Elche'],
+  'صن داونز': ['Mamelodi Sundowns'],
+  'رايو فاييكانو': ['Rayo Vallecano'],
+  'الدفاع الحسني الجديدي': ['Difaa EL Jadida'],
         'ميلان': ['AC Milan'],
         'ريال مدريد': ['Real Madrid'],
         'فالنسيا': ['Valencia'],
@@ -425,8 +465,19 @@ export default function App() {
         const awayName = item.teams?.away?.name || '';
         const competition =
           `${item.league?.name || ''} ${homeName} ${awayName}`;
+        if (targetMinutesUtc !== null) {
+          const kickoff = item.fixture?.date;
+          if (kickoff == null || kickoff === '') return false;
+          const kickoffDate = new Date(kickoff);
+          if (Number.isNaN(kickoffDate.getTime())) return false;
+          const fixtureUtcDate = kickoffDate.toISOString().slice(0, 10);
+          if (fixtureUtcDate !== expectedUtcDate) return false;
+          const fixtureMinutesUtc = kickoffDate.getUTCHours() * 60 + kickoffDate.getUTCMinutes();
+          const difference = Math.abs(fixtureMinutesUtc - targetMinutesUtc);
+          if (Math.min(difference, 1440 - difference) > 15) return false;
+        }
 
-        if (/\bu[- ]?(?:16|17|18|19|20|21|23)\b|\b(?:youth|women|woman|feminine|reserve|reserves|academy|II|III)\b|\bW\b/i.test(competition)) {
+        if (/\bu[- ]?(?:16|17|18|19|20|21|23)\b|\b(?:youth|women|woman|feminine|reserve|reserves|academy|II|III|B)\b|\bW\b/i.test(competition)) {
           return false;
         }
 
@@ -534,7 +585,7 @@ const fetchMatches = async (day = 'today') => {
     let ratingsRequestStarted = false;
 
     try {
-      const fixture = await findMatchingFixture(match.home, match.away, date);
+      const fixture = await findMatchingFixture(match.home, match.away, date, match.time);
 
       if (!fixture?.fixture?.id) {
         setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
