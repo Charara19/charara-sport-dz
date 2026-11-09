@@ -1827,6 +1827,29 @@ const fetchMatches = async (day = 'today') => {
     }, [selectedLeague]);
 
 
+    useEffect(() => {
+      if (selectedLeague !== 'تصفيات أمم إفريقيا') return;
+
+      const refreshAfconStandings = async () => {
+        try {
+          const response = await fetch(
+            'https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/72'
+          );
+          const payload = await response.json();
+
+          if (response.ok && payload.success && Array.isArray(payload.data)) {
+            setStandings(payload.data);
+            setStandingsError('');
+          }
+        } catch (error) {
+          console.log('AFCON standings refresh error:', error.message);
+        }
+      };
+
+      const interval = setInterval(refreshAfconStandings, 5 * 60 * 1000);
+      return () => clearInterval(interval);
+    }, [selectedLeague]);
+
     const leagues = [
       { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
       { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
