@@ -210,6 +210,7 @@ export default function App() {
   const liveUpdateInProgressRef = useRef(false);
   const currentFixtureIdRef = useRef(null);
   const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
+  const currentFixtureApiRef = useRef('');
   const fixturesCacheRef = useRef({});
   const [selectedBroadcastCountry, setSelectedBroadcastCountry] = useState('الجزائر');
   const [streamUrl, setStreamUrl] = useState('');
@@ -302,6 +303,7 @@ export default function App() {
 
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
+  const AFCON_API_URL = 'https://charara-sport-standings-api.hasnnoui73.workers.dev/';
 
   const translateFixtureStatus = (code) => {
     const statuses = {
@@ -527,7 +529,7 @@ const fetchMatches = async (day = 'today') => {
         throw new Error('بيانات المباريات غير صالحة');
       }
 
-      const updatedMatches = data.matches.map(match => ({
+      const faborMatches = data.matches.map(match => ({
         ...match,
         matchDate:
           (typeof match.url === 'string'
@@ -535,6 +537,73 @@ const fetchMatches = async (day = 'today') => {
             : null) || getDateForMatchDay(day)
       }));
 
+      let afconMatches = [];
+
+      try {
+        const targetDate = getDateForMatchDay(day);
+        const afconResponse = await fetch(
+          `${AFCON_API_URL}fixtures?date=${targetDate}`
+        );
+
+        if (afconResponse.ok) {
+          const afconData = await afconResponse.json();
+          const fixtures = afconData?.data?.response;
+
+          if (afconData.success && Array.isArray(fixtures)) {
+            const seenFixtureIds = new Set();
+
+            afconMatches = fixtures
+              .filter(item => {
+                const id = item.fixture?.id;
+                if (Number(item.league?.id) !== 72 || !id || seenFixtureIds.has(id)) {
+                  return false;
+                }
+                seenFixtureIds.add(id);
+                return true;
+              })
+              .map(item => {
+                const fixture = item.fixture;
+                const kickoffText = String(fixture.date || '').replace(' ', 'T');
+                const kickoffDate = new Date(
+                  /Z|[+-]\d{2}:?\d{2}$/.test(kickoffText)
+                    ? kickoffText
+                    : kickoffText + 'Z'
+                );
+
+                const time = Number.isNaN(kickoffDate.getTime())
+                  ? '--:--'
+                  : `${String(kickoffDate.getHours()).padStart(2, '0')}:${String(kickoffDate.getMinutes()).padStart(2, '0')}`;
+
+                const homeScore = item.goals?.home;
+                const awayScore = item.goals?.away;
+
+                return {
+                  home: item.teams?.home?.name || 'الفريق الأول',
+                  away: item.teams?.away?.name || 'الفريق الثاني',
+                  homeLogo: '',
+                  awayLogo: '',
+                  league: 'تصفيات أمم إفريقيا',
+                  leagueLogo: '',
+                  time,
+                  score: homeScore == null || awayScore == null
+                    ? null
+                    : [String(homeScore), String(awayScore)],
+                  status: translateFixtureStatus(fixture.status?.short) ||
+                    fixture.status?.long || 'موعد المباراة',
+                  url: `afcon:${fixture.id}`,
+                  matchDate: targetDate,
+                  isAfconFixture: true,
+                  afconFixtureId: fixture.id,
+                  afconFixture: item
+                };
+              });
+          }
+        }
+      } catch (afconError) {
+        console.log('AFCON fixtures error:', afconError.message);
+      }
+
+      const updatedMatches = [...faborMatches, ...afconMatches];
       setMatches(updatedMatches);
 
       setSelectedMatch(current => {
@@ -585,7 +654,9 @@ const fetchMatches = async (day = 'today') => {
     let ratingsRequestStarted = false;
 
     try {
-      const fixture = await findMatchingFixture(match.home, match.away, date, match.time);
+      const fixture = match.isAfconFixture
+        ? match.afconFixture
+        : await findMatchingFixture(match.home, match.away, date, match.time);
 
       if (!fixture?.fixture?.id) {
         setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
@@ -594,6 +665,7 @@ const fetchMatches = async (day = 'today') => {
         return;
       }
 
+      currentFixtureApiRef.current = match.isAfconFixture ? AFCON_API_URL : STATS_API_URL;
       currentFixtureIdRef.current = fixture.fixture.id;
       currentFixtureTeamsRef.current = {
         homeId: fixture.teams?.home?.id,
@@ -606,7 +678,7 @@ const fetchMatches = async (day = 'today') => {
       (async () => {
         try {
           const playersResponse = await fetch(
-            `${STATS_API_URL}fixtures/players?fixture=${fixture.fixture.id}`
+            `${currentFixtureApiRef.current}fixtures/players?fixture=${fixture.fixture.id}`
           );
 
           if (!playersResponse.ok) {
@@ -663,7 +735,7 @@ const fetchMatches = async (day = 'today') => {
 
       try {
         const lineupsResponse = await fetch(
-          `${STATS_API_URL}fixtures/lineups?fixture=${fixture.fixture.id}`
+          `${currentFixtureApiRef.current}fixtures/lineups?fixture=${fixture.fixture.id}`
         );
 
         if (!lineupsResponse.ok) {
@@ -683,7 +755,7 @@ const fetchMatches = async (day = 'today') => {
       }
 
       const eventsResponse = await fetch(
-        `${STATS_API_URL}fixtures/events?fixture=${fixture.fixture.id}`
+        `${currentFixtureApiRef.current}fixtures/events?fixture=${fixture.fixture.id}`
       );
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
@@ -715,7 +787,7 @@ const fetchMatches = async (day = 'today') => {
       }
 
       const response = await fetch(
-        `${STATS_API_URL}fixtures/statistics?fixture=${fixture.fixture.id}`
+        `${currentFixtureApiRef.current}fixtures/statistics?fixture=${fixture.fixture.id}`
       );
       if (!response.ok) throw new Error('تعذر تحميل الإحصائيات');
 
@@ -761,6 +833,7 @@ const fetchMatches = async (day = 'today') => {
     if (!selectedMatch) {
       currentFixtureIdRef.current = null;
       currentFixtureTeamsRef.current = { homeId: null, awayId: null };
+      currentFixtureApiRef.current = '';
       return;
     }
 
@@ -773,7 +846,7 @@ const fetchMatches = async (day = 'today') => {
       try {
         try {
           const statusResponse = await fetch(
-            `${STATS_API_URL}fixtures?id=${fixtureId}`
+            `${currentFixtureApiRef.current || STATS_API_URL}fixtures?id=${fixtureId}`
           );
 
           if (statusResponse.ok) {
@@ -799,7 +872,7 @@ const fetchMatches = async (day = 'today') => {
         }
 
         const response = await fetch(
-          `${STATS_API_URL}fixtures/events?fixture=${fixtureId}`
+          `${currentFixtureApiRef.current || STATS_API_URL}fixtures/events?fixture=${fixtureId}`
         );
         if (!response.ok) return;
 
@@ -827,7 +900,7 @@ const fetchMatches = async (day = 'today') => {
         setMatchEvents(incomingEvents);
 
         const statsResponse = await fetch(
-          `${STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
+          `${currentFixtureApiRef.current || STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
         );
 
         if (statsResponse.ok) {
@@ -1308,7 +1381,7 @@ const fetchMatches = async (day = 'today') => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => match.isAfconFixture ? Alert.alert('تنبيه', 'لا يتوفر رابط بث رسمي لهذه المباراة حالياً.') : match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
             >
               <Text style={{ color: GREEN, fontWeight: '900', fontSize: 12 }}>
@@ -2707,7 +2780,7 @@ const fetchMatches = async (day = 'today') => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => selectedMatch.isAfconFixture ? Alert.alert('تنبيه', 'لا يتوفر رابط بث رسمي لهذه المباراة حالياً.') : selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 10 }}
             >
               <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة داخل التطبيق</Text>
