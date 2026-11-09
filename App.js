@@ -1972,8 +1972,13 @@ const fetchMatches = async (day = 'today') => {
                   }}>
                     <Text style={{ color: GREEN, width: 32, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>م</Text>
                     <Text style={{ color: GREEN, flex: 1, textAlign: 'right', fontSize: 11, fontWeight: '900' }}>الفريق</Text>
-                    <Text style={{ color: GREEN, width: 34, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>لعب</Text>
-                    <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>فارق</Text>
+                    <Text style={{ color: GREEN, width: 30, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>لعب</Text>
+                    {selectedLeague === 'تصفيات أمم إفريقيا' && <>
+                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ف</Text>
+                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ت</Text>
+                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>خ</Text>
+                    </>}
+                    <Text style={{ color: GREEN, width: 34, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>فارق</Text>
                     <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>نقاط</Text>
                   </View>
 
@@ -2000,16 +2005,47 @@ const fetchMatches = async (day = 'today') => {
                         <Text numberOfLines={1} style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
                           {row.team?.short_name || row.team?.name || '—'}
                         </Text>
-                        <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 12 }}>
+                        <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
                           {row.played ?? 0}
                         </Text>
-                        <Text style={{ color: '#FFFFFF', width: 38, textAlign: 'center', fontSize: 12 }}>
+                        {selectedLeague === 'تصفيات أمم إفريقيا' && <>
+                          <Text style={{ color: '#34D399', width: 23, textAlign: 'center', fontSize: 11 }}>{row.won ?? 0}</Text>
+                          <Text style={{ color: '#FBBF24', width: 23, textAlign: 'center', fontSize: 11 }}>{row.draw ?? 0}</Text>
+                          <Text style={{ color: '#F87171', width: 23, textAlign: 'center', fontSize: 11 }}>{row.lost ?? 0}</Text>
+                        </>}
+                        <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 11 }}>
                           {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
                         </Text>
                         <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
                           {row.points ?? 0}
                         </Text>
                       </View>
+                      {selectedLeague === 'تصفيات أمم إفريقيا' && Array.isArray(row.form) && row.form.length > 0 && (
+                        <View style={{ alignItems: 'flex-end', paddingHorizontal: 8, paddingBottom: 9 }}>
+                          <Text style={{ color: MUTED, fontSize: 10, marginBottom: 5 }}>آخر النتائج</Text>
+                          <View style={{ flexDirection: 'row', gap: 5 }}>
+                            {row.form.slice(-5).map((item, formIndex) => {
+                              const result = item.result;
+                              const resultColor = result === 'W' ? '#34D399' : result === 'D' ? '#FBBF24' : '#F87171';
+                              const resultLabel = result === 'W' ? 'ف' : result === 'D' ? 'ت' : 'خ';
+                              return (
+                                <View key={item.date || formIndex} style={{
+                                  width: 23,
+                                  height: 23,
+                                  borderRadius: 6,
+                                  backgroundColor: resultColor + '22',
+                                  borderWidth: 1,
+                                  borderColor: resultColor,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}>
+                                  <Text style={{ color: resultColor, fontSize: 11, fontWeight: '900' }}>{resultLabel}</Text>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
                     </View>
                   ))}
                 </View>
