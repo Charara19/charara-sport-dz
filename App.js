@@ -1684,6 +1684,36 @@ const fetchMatches = async (day = 'today') => {
     const [standings, setStandings] = useState([]);
     const [standingsLoading, setStandingsLoading] = useState(false);
     const [standingsError, setStandingsError] = useState('');
+    const [selectedTeam, setSelectedTeam] = useState(null);
+    const [teamDetails, setTeamDetails] = useState(null);
+    const [teamLoading, setTeamLoading] = useState(false);
+    const [teamError, setTeamError] = useState('');
+
+    const loadTeamDetails = async (team) => {
+      if (!team?.slug) return;
+
+      setSelectedTeam(team);
+      setTeamDetails(null);
+      setTeamError('');
+      setTeamLoading(true);
+
+      try {
+        const response = await fetch(
+          `https://charara-sport-standings-api.hasnnoui73.workers.dev/teams/slug/${encodeURIComponent(team.slug)}`
+        );
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success || !payload.team) {
+          throw new Error('Team details request failed');
+        }
+
+        setTeamDetails(payload);
+      } catch (error) {
+        setTeamError('تعذر تحميل مباريات المنتخب حالياً. حاول مرة أخرى.');
+      } finally {
+        setTeamLoading(false);
+      }
+    };
 
     const leagueIds = {
       'دوري أبطال أوروبا': '18',
@@ -2002,9 +2032,24 @@ const fetchMatches = async (day = 'today') => {
                         <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
                           {row.position ?? index + 1}
                         </Text>
-                        <Text numberOfLines={1} style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
-                          {row.team?.short_name || row.team?.name || '—'}
-                        </Text>
+                        <TouchableOpacity
+                          onPress={() => {
+                            if (selectedLeague === 'تصفيات أمم إفريقيا' && row.team?.slug) {
+                              loadTeamDetails(row.team);
+                            }
+                          }}
+                          activeOpacity={0.7}
+                          style={{ flex: 1 }}
+                        >
+                          <Text numberOfLines={1} style={{
+                            color: selectedLeague === 'تصفيات أمم إفريقيا' ? GREEN : '#FFFFFF',
+                            textAlign: 'right',
+                            fontSize: 12,
+                            fontWeight: 'bold',
+                          }}>
+                            {row.team?.short_name || row.team?.name || '—'}
+                          </Text>
+                        </TouchableOpacity>
                         <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
                           {row.played ?? 0}
                         </Text>
@@ -2055,6 +2100,96 @@ const fetchMatches = async (day = 'today') => {
                 </Text>
               )}
             </View>
+
+            {selectedLeague === 'تصفيات أمم إفريقيا' && selectedTeam && (
+              <View style={{
+                backgroundColor: '#111A15',
+                borderWidth: 1,
+                borderColor: '#245235',
+                borderRadius: 15,
+                padding: 14,
+                marginTop: 15,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedTeam(null);
+                      setTeamDetails(null);
+                      setTeamError('');
+                    }}
+                    style={{ padding: 7 }}
+                  >
+                    <Text style={{ color: '#F87171', fontSize: 13, fontWeight: 'bold' }}>إغلاق ✕</Text>
+                  </TouchableOpacity>
+                  <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'right', flex: 1 }}>
+                    {teamDetails?.team?.name || selectedTeam.name || selectedTeam.short_name}
+                  </Text>
+                </View>
+
+                {teamDetails?.team?.coach_name ? (
+                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 5 }}>
+                    المدرب: {teamDetails.team.coach_name}
+                  </Text>
+                ) : null}
+
+                {teamLoading ? (
+                  <Text style={{ color: MUTED, textAlign: 'right', marginTop: 15 }}>
+                    جاري تحميل مباريات المنتخب...
+                  </Text>
+                ) : teamError ? (
+                  <Text style={{ color: '#F87171', textAlign: 'right', marginTop: 15 }}>
+                    {teamError}
+                  </Text>
+                ) : teamDetails ? (
+                  <>
+                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 18, marginBottom: 9 }}>
+                      المباريات السابقة
+                    </Text>
+                    {teamDetails.results?.length ? teamDetails.results.map((match, index) => (
+                      <View key={match.id || index} style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                      }}>
+                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                          {match.date || '—'} • {match.league_name || ''}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                          {match.home_team}  {match.home_score ?? '—'} - {match.away_score ?? '—'}  {match.away_team}
+                        </Text>
+                      </View>
+                    )) : (
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات سابقة.</Text>
+                    )}
+
+                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 15, marginBottom: 9 }}>
+                      المباريات القادمة
+                    </Text>
+                    {teamDetails.upcoming?.length ? teamDetails.upcoming.map((match, index) => (
+                      <View key={match.id || index} style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                      }}>
+                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                          {match.date || '—'} • {match.league_name || ''}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                          {match.home_team}  ضد  {match.away_team}
+                        </Text>
+                        <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
+                          {match.datetime || match.status || ''}
+                        </Text>
+                      </View>
+                    )) : (
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات قادمة حالياً.</Text>
+                    )}
+                  </>
+                ) : null}
+              </View>
+            )}
           </View>
         </View>
       );
