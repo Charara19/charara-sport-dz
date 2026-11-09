@@ -359,6 +359,8 @@ export default function App() {
         'أولمبيك مارسيليا': ['Marseille', 'Olympique Marseille'],
         'الجيش الملكي': ['FAR Rabat', 'FAR'],
         'الرجاء البيضاوي': ['Raja Casablanca', 'Raja CA'],
+        'برشلونة': ['Barcelona', 'FC Barcelona'],
+        'اتحاد طنجة': ['Ittihad Tanger', 'Ittihad Tangier'],
         'لايبزيج': ['RB Leipzig', 'Leipzig'],
         'مانشستر سيتي': ['Manchester City'],
         'لانس': ['Lens'],
