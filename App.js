@@ -1762,6 +1762,9 @@ const fetchMatches = async (day = 'today') => {
     const [standings, setStandings] = useState([]);
     const [standingsLoading, setStandingsLoading] = useState(false);
     const [standingsError, setStandingsError] = useState('');
+    const [leagueFixtures, setLeagueFixtures] = useState({ upcoming: [], results: [] });
+    const [leagueFixturesLoading, setLeagueFixturesLoading] = useState(false);
+    const [leagueFixturesError, setLeagueFixturesError] = useState('');
     const [selectedTeam, setSelectedTeam] = useState(null);
     const [teamDetails, setTeamDetails] = useState(null);
     const [teamLoading, setTeamLoading] = useState(false);
@@ -2001,6 +2004,59 @@ const fetchMatches = async (day = 'today') => {
       return () => clearInterval(interval);
     }, [selectedLeague]);
 
+    useEffect(() => {
+      const leagueId = leagueIds[selectedLeague];
+      let active = true;
+
+      setLeagueFixtures({ upcoming: [], results: [] });
+      setLeagueFixturesError('');
+
+      if (!leagueId) {
+        setLeagueFixturesLoading(false);
+        setLeagueFixturesError('مواعيد الدوري الجزائري غير متاحة من المصدر الحالي.');
+        return () => { active = false; };
+      }
+
+      const loadLeagueFixtures = async () => {
+        setLeagueFixturesLoading(true);
+        try {
+          const response = await fetch(
+            AFCON_API_URL + 'league-fixtures/' + leagueId
+          );
+          const payload = await response.json();
+
+          if (!response.ok || !payload.success || !payload.data) {
+            throw new Error('League fixtures request failed');
+          }
+
+          if (active) {
+            setLeagueFixtures({
+              upcoming: Array.isArray(payload.data.upcoming_fixtures)
+                ? payload.data.upcoming_fixtures : [],
+              results: Array.isArray(payload.data.recent_results)
+                ? payload.data.recent_results : [],
+            });
+            setLeagueFixturesError('');
+          }
+        } catch (error) {
+          if (active) {
+            setLeagueFixtures({ upcoming: [], results: [] });
+            setLeagueFixturesError('تعذر تحميل مباريات البطولة حالياً. حاول لاحقاً.');
+          }
+        } finally {
+          if (active) setLeagueFixturesLoading(false);
+        }
+      };
+
+      loadLeagueFixtures();
+      const interval = setInterval(loadLeagueFixtures, 5 * 60 * 1000);
+
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
+    }, [selectedLeague]);
+
     const leagues = [
       { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
       { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
@@ -2219,6 +2275,81 @@ const fetchMatches = async (day = 'today') => {
                 <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
                   لا توجد بيانات ترتيب متاحة حالياً.
                 </Text>
+              )}
+            </View>
+
+            <View style={{
+              backgroundColor: '#111A15',
+              borderWidth: 1,
+              borderColor: '#245235',
+              borderRadius: 14,
+              padding: 14,
+              marginTop: 15,
+            }}>
+              <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+                مباريات البطولة
+              </Text>
+
+              {leagueFixturesLoading ? (
+                <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12 }}>
+                  جاري تحميل مباريات البطولة...
+                </Text>
+              ) : leagueFixturesError ? (
+                <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12, lineHeight: 22 }}>
+                  {leagueFixturesError}
+                </Text>
+              ) : (
+                <>
+                  <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
+                    المباريات القادمة
+                  </Text>
+                  {leagueFixtures.upcoming.length ? (
+                    leagueFixtures.upcoming.slice(0, 10).map((match, index) => (
+                      <View key={String(match.id || index)} style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                      }}>
+                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                          {match.date || match.datetime || '—'} • {match.stage || ''}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                          {match.home_team || '—'} ضد {match.away_team || '—'}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                      لا توجد مباريات قادمة مسجلة حالياً.
+                    </Text>
+                  )}
+
+                  <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
+                    آخر النتائج
+                  </Text>
+                  {leagueFixtures.results.length ? (
+                    leagueFixtures.results.slice(0, 10).map((match, index) => (
+                      <View key={String(match.id || index)} style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                      }}>
+                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                          {match.date || '—'} • {match.stage || ''}
+                        </Text>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                          {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                      لا توجد نتائج سابقة مسجلة حالياً.
+                    </Text>
+                  )}
+                </>
               )}
             </View>
 
