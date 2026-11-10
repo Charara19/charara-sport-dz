@@ -2186,6 +2186,41 @@ const fetchMatches = async (day = 'today') => {
                     )) : (
                       <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات قادمة حالياً.</Text>
                     )}
+
+                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 20, marginBottom: 10 }}>
+                      قائمة لاعبي المنتخب ({teamDetails.squad?.length || 0})
+                    </Text>
+                    {teamDetails.squad?.length ? teamDetails.squad.map((player, index) => (
+                      <View key={player.slug || index} style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
+                          #{player.jersey_number ?? '—'}
+                        </Text>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 13, fontWeight: 'bold' }}>
+                            {player.full_name || 'لاعب'}
+                          </Text>
+                          <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 4 }}>
+                            {player.position === 'Goalkeeper' ? 'حارس مرمى' :
+                             player.position === 'Defender' ? 'مدافع' :
+                             player.position === 'Midfielder' ? 'وسط ميدان' :
+                             player.position === 'Attacker' || player.position === 'Forward' ? 'مهاجم' :
+                             player.position || 'غير محدد'}
+                          </Text>
+                        </View>
+                      </View>
+                    )) : (
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                        لا تتوفر قائمة اللاعبين حالياً.
+                      </Text>
+                    )}
                   </>
                 ) : null}
               </View>
