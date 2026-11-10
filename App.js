@@ -1835,6 +1835,7 @@ const fetchMatches = async (day = 'today') => {
     };
 
     const leagueIds = {
+      'كأس أمم إفريقيا': '123',
       'دوري أبطال أوروبا': '18',
       'الدوري الإنجليزي': '24',
       'الدوري الإسباني': '1',
@@ -1861,7 +1862,7 @@ const fetchMatches = async (day = 'today') => {
       setStandingsError('');
       setStandingsLoading(true);
 
-      const isAfcon = selectedLeague === 'كأس أمم إفريقيا';
+      const isAfcon = false; // كأس إفريقيا تستخدم SportAPI Worker
       const isAlgerian = selectedLeague === 'الدوري الجزائري';
       const leagueId = leagueIds[selectedLeague];
 
@@ -1977,12 +1978,13 @@ const fetchMatches = async (day = 'today') => {
 
 
     useEffect(() => {
-      if (selectedLeague !== 'تصفيات أمم إفريقيا') return;
+      if (selectedLeague !== 'تصفيات أمم إفريقيا' && selectedLeague !== 'كأس أمم إفريقيا') return;
+      const afconLeagueId = selectedLeague === 'كأس أمم إفريقيا' ? '123' : '72';
 
       const refreshAfconStandings = async () => {
         try {
           const response = await fetch(
-            'https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/72'
+            `https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${afconLeagueId}`
           );
           const payload = await response.json();
 
