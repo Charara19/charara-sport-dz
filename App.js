@@ -216,6 +216,8 @@ export default function App() {
   const [streamUrl, setStreamUrl] = useState('');
   const [showSirTv, setShowSirTv] = useState(false);
   const [sirTvReload, setSirTvReload] = useState(0);
+  const [showBtvSite, setShowBtvSite] = useState(false);
+  const [btvReload, setBtvReload] = useState(0);
   const [internalMatchUrl, setInternalMatchUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
@@ -1084,7 +1086,58 @@ const fetchMatches = async (day = 'today') => {
         </View>
       </View>
 
-      <SectionTitle title="منصات المشاهدة" />
+      <SectionTitle title="BTV.pics داخل شرارة سبورت" />
+
+      <View style={styles.playerCard}>
+        <Text style={styles.sectionTitle}>
+          📺 موقع BTV.pics
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+          تصفح الموقع داخل التطبيق. محتوى البث وحقوق إعادة توزيعه غير متحقق منها.
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.playerButton, { marginTop: 12 }]}
+          onPress={() => setShowBtvSite(value => !value)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.playerButtonText}>
+            {showBtvSite ? 'إخفاء الموقع ▲' : '▶ فتح BTV.pics داخل التطبيق'}
+          </Text>
+        </TouchableOpacity>
+
+        {showBtvSite && (
+          <>
+            <WebView
+              key={btvReload}
+              source={{ uri: 'https://btv.pics/' }}
+              style={{ height: 550, marginTop: 12, backgroundColor: '#000000' }}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsFullscreenVideo
+              setSupportMultipleWindows={false}
+              javaScriptCanOpenWindowsAutomatically={false}
+              startInLoadingState
+              mediaPlaybackRequiresUserAction
+              onError={() => Alert.alert(
+                'تعذر تحميل BTV.pics',
+                'تحقق من الإنترنت أو جرّب لاحقاً.'
+              )}
+            />
+
+            <TouchableOpacity
+              style={[styles.playerButton, { marginTop: 10 }]}
+              onPress={() => setBtvReload(value => value + 1)}
+            >
+              <Text style={styles.playerButtonText}>
+                ↻ إعادة تحميل الموقع
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      <SectionTitle title="منصات المشاهدة الرسمية" />
 
       {platforms.map((platform) => (
         <View key={platform.name} style={styles.platformCard}>
