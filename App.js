@@ -1715,7 +1715,14 @@ const fetchMatches = async (day = 'today') => {
           throw new Error('Player details request failed');
         }
 
-        setPlayerDetails(payload.player);
+        setPlayerDetails({
+          ...payload.player,
+          team: payload.team,
+          league: payload.league,
+          season: payload.season,
+          career: payload.career,
+          matches: payload.matches || [],
+        });
       } catch (error) {
         setPlayerError('تعذر تحميل ملف اللاعب حالياً. حاول لاحقاً.');
       } finally {
@@ -2297,42 +2304,97 @@ const fetchMatches = async (day = 'today') => {
                             {playerDetails.photo_url ? (
                               <Image
                                 source={{ uri: playerDetails.photo_url }}
-                                style={{
-                                  width: 110,
-                                  height: 110,
-                                  borderRadius: 55,
-                                  alignSelf: 'center',
-                                  marginBottom: 12,
-                                  backgroundColor: '#26352B',
-                                }}
+                                style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B' }}
                                 resizeMode="cover"
                               />
-                            ) : null}
+                            ) : (
+                              <View style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: GREEN }}>
+                                <Text style={{ color: GREEN, fontSize: 38, fontWeight: '900' }}>
+                                  {(playerDetails.full_name || selectedPlayer.full_name || '?').charAt(0)}
+                                </Text>
+                                <Text style={{ color: MUTED, fontSize: 9, marginTop: 3 }}>لا توجد صورة</Text>
+                              </View>
+                            )}
 
                             <Text style={{ color: GREEN, textAlign: 'center', fontSize: 17, fontWeight: '900' }}>
                               {playerDetails.full_name || playerDetails.name || selectedPlayer.full_name}
                             </Text>
-
                             <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 6 }}>
                               {playerDetails.position || selectedPlayer.position || 'المركز غير متوفر'}
                             </Text>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 12, marginTop: 8 }}>
+                              {playerDetails.team?.full_name || 'النادي غير متوفر'}
+                            </Text>
+                            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginTop: 4 }}>
+                              {playerDetails.league?.name || 'البطولة غير متوفرة'}
+                            </Text>
 
                             <View style={{ marginTop: 14, gap: 9 }}>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
-                                الجنسية: {playerDetails.nationality || selectedPlayer.nationality || 'غير متوفرة'}
-                              </Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
-                                رقم القميص: {playerDetails.jersey_number ?? selectedPlayer.jersey_number ?? '—'}
-                              </Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
-                                تاريخ الميلاد: {playerDetails.date_of_birth || playerDetails.birth_date || 'غير متوفر'}
-                              </Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
-                                الطول: {playerDetails.height || 'غير متوفر'}
-                              </Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
-                                الوزن: {playerDetails.weight || 'غير متوفر'}
-                              </Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الجنسية: {playerDetails.nationality || selectedPlayer.nationality || 'غير متوفرة'}</Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>رقم القميص: {playerDetails.jersey_number ?? selectedPlayer.jersey_number ?? '—'}</Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>تاريخ الميلاد: {playerDetails.date_of_birth || 'غير متوفر'}</Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الطول: {playerDetails.height || 'غير متوفر'}</Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الوزن: {playerDetails.weight || 'غير متوفر'}</Text>
+                            </View>
+
+                            <View style={{ marginTop: 18, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات الموسم</Text>
+                              {[
+                                ['المشاركات', playerDetails.season?.appearances],
+                                ['المباريات أساسياً', playerDetails.season?.starts],
+                                ['دقائق اللعب', playerDetails.season?.minutes],
+                                ['الأهداف', playerDetails.season?.goals],
+                                ['التمريرات الحاسمة', playerDetails.season?.assists],
+                                ['التصديات', playerDetails.season?.saves],
+                                ['التمريرات', playerDetails.season?.passes],
+                                ['دقة التمرير', playerDetails.season?.pass_accuracy == null ? null : playerDetails.season.pass_accuracy + '%'],
+                                ['البطاقات الصفراء', playerDetails.season?.yellow],
+                                ['البطاقات الحمراء', playerDetails.season?.red],
+                              ].map(([label, value]) => (
+                                <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
+                                  <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
+                                </View>
+                              ))}
+                            </View>
+
+                            <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات المسيرة</Text>
+                              {[
+                                ['المشاركات', playerDetails.career?.appearances],
+                                ['دقائق اللعب', playerDetails.career?.minutes],
+                                ['الأهداف', playerDetails.career?.goals],
+                                ['التمريرات الحاسمة', playerDetails.career?.assists],
+                                ['التصديات', playerDetails.career?.saves],
+                                ['التمريرات', playerDetails.career?.passes],
+                                ['دقة التمرير', playerDetails.career?.pass_accuracy == null ? null : playerDetails.career.pass_accuracy + '%'],
+                              ].map(([label, value]) => (
+                                <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
+                                  <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
+                                </View>
+                              ))}
+                            </View>
+
+                            <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>آخر خمس مباريات</Text>
+                              {playerDetails.matches?.length ? (
+                                playerDetails.matches.slice(0, 5).map((match, index) => (
+                                  <View key={String(match.fixture_id || index)} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                    <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                                      {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
+                                    </Text>
+                                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
+                                      {match.date || 'التاريخ غير متوفر'} • {match.league_name || ''}
+                                    </Text>
+                                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 3 }}>
+                                      الدقائق: {match.mins_played ?? '—'} • الأهداف: {match.goals ?? 0} • التمريرات الحاسمة: {match.assists ?? 0}
+                                    </Text>
+                                  </View>
+                                ))
+                              ) : (
+                                <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا تتوفر مباريات حديثة لهذا اللاعب.</Text>
+                              )}
                             </View>
                           </>
                         ) : null}
