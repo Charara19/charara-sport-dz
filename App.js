@@ -1689,6 +1689,40 @@ const fetchMatches = async (day = 'today') => {
     const [teamLoading, setTeamLoading] = useState(false);
     const [teamError, setTeamError] = useState('');
 
+    const [selectedPlayer, setSelectedPlayer] = useState(null);
+    const [playerDetails, setPlayerDetails] = useState(null);
+    const [playerLoading, setPlayerLoading] = useState(false);
+    const [playerError, setPlayerError] = useState('');
+
+    const loadPlayerDetails = async (player) => {
+      if (!player?.slug) {
+        setPlayerError('لا تتوفر بيانات هذا اللاعب.');
+        return;
+      }
+
+      setSelectedPlayer(player);
+      setPlayerDetails(null);
+      setPlayerError('');
+      setPlayerLoading(true);
+
+      try {
+        const response = await fetch(
+          `https://charara-sport-standings-api.hasnnoui73.workers.dev/players/slug/${encodeURIComponent(player.slug)}`
+        );
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success || !payload.player) {
+          throw new Error('Player details request failed');
+        }
+
+        setPlayerDetails(payload.player);
+      } catch (error) {
+        setPlayerError('تعذر تحميل ملف اللاعب حالياً. حاول لاحقاً.');
+      } finally {
+        setPlayerLoading(false);
+      }
+    };
+
     const loadTeamDetails = async (team) => {
       if (!team?.slug) return;
 
@@ -2191,15 +2225,20 @@ const fetchMatches = async (day = 'today') => {
                       قائمة لاعبي المنتخب ({teamDetails.squad?.length || 0})
                     </Text>
                     {teamDetails.squad?.length ? teamDetails.squad.map((player, index) => (
-                      <View key={player.slug || index} style={{
-                        backgroundColor: '#19251E',
-                        borderRadius: 9,
-                        padding: 11,
-                        marginBottom: 7,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}>
+                      <TouchableOpacity
+                        key={player.slug || index}
+                        activeOpacity={0.8}
+                        onPress={() => loadPlayerDetails(player)}
+                        style={{
+                          backgroundColor: '#19251E',
+                          borderRadius: 9,
+                          padding: 11,
+                          marginBottom: 7,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
                           #{player.jersey_number ?? '—'}
                         </Text>
@@ -2214,13 +2253,91 @@ const fetchMatches = async (day = 'today') => {
                              player.position === 'Attacker' || player.position === 'Forward' ? 'مهاجم' :
                              player.position || 'غير محدد'}
                           </Text>
+                          <Text style={{ color: GREEN, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
+                            اضغط لعرض ملف اللاعب
+                          </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                     )) : (
                       <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
                         لا تتوفر قائمة اللاعبين حالياً.
                       </Text>
                     )}
+
+                    {selectedPlayer ? (
+                      <View style={{
+                        backgroundColor: '#19251E',
+                        borderColor: '#245235',
+                        borderWidth: 1,
+                        borderRadius: 12,
+                        padding: 14,
+                        marginTop: 12,
+                      }}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedPlayer(null);
+                            setPlayerDetails(null);
+                            setPlayerError('');
+                          }}
+                          style={{ alignSelf: 'flex-start', padding: 6 }}
+                        >
+                          <Text style={{ color: GREEN, fontWeight: '900' }}>إغلاق ✕</Text>
+                        </TouchableOpacity>
+
+                        {playerLoading ? (
+                          <Text style={{ color: MUTED, textAlign: 'center', padding: 18 }}>
+                            جارٍ تحميل ملف اللاعب...
+                          </Text>
+                        ) : playerError ? (
+                          <Text style={{ color: '#FF8A80', textAlign: 'center', padding: 12 }}>
+                            {playerError}
+                          </Text>
+                        ) : playerDetails ? (
+                          <>
+                            {playerDetails.photo_url ? (
+                              <Image
+                                source={{ uri: playerDetails.photo_url }}
+                                style={{
+                                  width: 110,
+                                  height: 110,
+                                  borderRadius: 55,
+                                  alignSelf: 'center',
+                                  marginBottom: 12,
+                                  backgroundColor: '#26352B',
+                                }}
+                                resizeMode="cover"
+                              />
+                            ) : null}
+
+                            <Text style={{ color: GREEN, textAlign: 'center', fontSize: 17, fontWeight: '900' }}>
+                              {playerDetails.full_name || playerDetails.name || selectedPlayer.full_name}
+                            </Text>
+
+                            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 6 }}>
+                              {playerDetails.position || selectedPlayer.position || 'المركز غير متوفر'}
+                            </Text>
+
+                            <View style={{ marginTop: 14, gap: 9 }}>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
+                                الجنسية: {playerDetails.nationality || selectedPlayer.nationality || 'غير متوفرة'}
+                              </Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
+                                رقم القميص: {playerDetails.jersey_number ?? selectedPlayer.jersey_number ?? '—'}
+                              </Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
+                                تاريخ الميلاد: {playerDetails.date_of_birth || playerDetails.birth_date || 'غير متوفر'}
+                              </Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
+                                الطول: {playerDetails.height || 'غير متوفر'}
+                              </Text>
+                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>
+                                الوزن: {playerDetails.weight || 'غير متوفر'}
+                              </Text>
+                            </View>
+                          </>
+                        ) : null}
+                      </View>
+                    ) : null}
                   </>
                 ) : null}
               </View>
