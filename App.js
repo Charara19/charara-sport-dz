@@ -3565,7 +3565,7 @@ const fetchMatches = async (day = 'today') => {
 
   if (factors.length === 0) {
     return (
-      <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
+      <View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
         <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>📈 مؤشر الضغط الهجومي</Text>
         <Text style={{ color: MUTED, textAlign: 'center', marginTop: 10 }}>لا تتوفر بيانات هجومية مشتركة كافية لحساب المؤشر.</Text>
       </View>
@@ -3581,13 +3581,13 @@ const fetchMatches = async (day = 'today') => {
 
   return (
     <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
-      <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 6 }}>📈 مؤشر الضغط الهجومي</Text>
+      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 8, letterSpacing: 0.4 }}>📈 مؤشر الضغط الهجومي</Text>
       <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginBottom: 14 }}>مؤشر تقديري محسوب من إحصائيات المباراة المتاحة</Text>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
         <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'left', fontWeight: '800' }}>{matchStats[0].team?.name || 'الفريق الأول'}</Text>
         <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right', fontWeight: '800' }}>{matchStats[1].team?.name || 'الفريق الثاني'}</Text>
       </View>
-      <View style={{ flexDirection: 'row', height: 13, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B' }}>
+      <View style={{ flexDirection: 'row', height: 16, borderRadius: 9, overflow: 'hidden', backgroundColor: '#26382B' }}>
         <View style={{ width: percent1 + '%', backgroundColor: winner === 1 ? GREEN : '#668B70' }} />
         <View style={{ width: percent2 + '%', backgroundColor: winner === 2 ? GREEN : '#668B70' }} />
       </View>
@@ -3599,7 +3599,7 @@ const fetchMatches = async (day = 'today') => {
         {winner === 0 ? 'الضغط الهجومي متعادل حسب البيانات المتاحة' : 'ضغط هجومي أكبر: ' + (matchStats[winner - 1].team?.name || 'الفريق')}
       </Text>
       {factors.map((item, index) => (
-        <View key={item.name} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, borderTopWidth: 1, borderTopColor: '#293A30' }}>
+        <View key={item.name} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 10, marginTop: 6, backgroundColor: '#111A15', borderRadius: 10, borderWidth: 1, borderColor: '#294735' }}>
           <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'left' }}>{item.first}</Text>
           <Text style={{ color: MUTED, flex: 2, textAlign: 'center' }}>{item.name}</Text>
           <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right' }}>{item.second}</Text>
@@ -3648,8 +3648,8 @@ const fetchMatches = async (day = 'today') => {
   );
 
   return (
-    <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
-      <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 6 }}>
+    <View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
+      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
         📊 توزيع أحداث المباراة حسب الدقائق
       </Text>
       <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginBottom: 14 }}>
@@ -3668,13 +3668,13 @@ const fetchMatches = async (day = 'today') => {
         const total = periodEvents.length;
 
         return (
-          <View key={period.label} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
+          <View key={period.label} style={{ paddingVertical: 12, paddingHorizontal: 10, marginBottom: 9, backgroundColor: '#111A15', borderRadius: 12, borderWidth: 1, borderColor: '#294735' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
               <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>{period.label} دقيقة</Text>
               <Text style={{ color: MUTED, fontSize: 11 }}>{total} حدث</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', height: 10, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B' }}>
+            <View style={{ flexDirection: 'row', height: 12, borderRadius: 8, overflow: 'hidden', backgroundColor: '#26382B' }}>
               <View style={{ width: total ? (firstCount / total * 100) + '%' : '0%', backgroundColor: GREEN }} />
               <View style={{ width: total ? (secondCount / total * 100) + '%' : '0%', backgroundColor: '#668B70' }} />
               <View style={{ width: total ? (unknownCount / total * 100) + '%' : '0%', backgroundColor: '#A0A0A0' }} />
@@ -3704,15 +3704,15 @@ const fetchMatches = async (day = 'today') => {
   );
 })()}
 
-<View style={{ backgroundColor: '#17231B', borderRadius: 10, padding: 14, marginTop: 12, marginBottom: 8 }}>
-  <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>أحداث المباراة</Text>
+<View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
+  <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 16, letterSpacing: 0.4 }}>أحداث المباراة</Text>
   {matchEvents.length > 0 ? matchEvents.map((event, index) => {
     const type = String(event.type || '');
     const detail = String(event.detail || '');
     const symbol = /goal/i.test(type) ? '⚽' : /card/i.test(type) ? (/red/i.test(detail) ? '🟥' : '🟨') : /subst/i.test(type) ? '🔄' : '•';
     return (
-      <View key={index} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#293A30' }}>
-        <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center' }}>{event.time?.elapsed ?? '--'}' {symbol} {type} {detail}</Text>
+      <View key={index} style={{ paddingVertical: 12, paddingHorizontal: 10, marginBottom: 8, backgroundColor: '#111A15', borderRadius: 12, borderWidth: 1, borderColor: '#294735' }}>
+        <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', fontSize: 14 }}>{event.time?.elapsed ?? '--'}' {symbol} {type} {detail}</Text>
         <Text style={{ color: '#FFFFFF', textAlign: 'center', marginTop: 4 }}>{event.team?.name || ''}</Text>
         <Text style={{ color: MUTED, textAlign: 'center', marginTop: 3 }}>{event.player?.name || ''}{event.assist?.name ? ' ← ' + event.assist.name : ''}</Text>
       </View>
