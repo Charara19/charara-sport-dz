@@ -1379,67 +1379,181 @@ const fetchMatches = async (day = 'today') => {
 
   const MatchesPage = () => (
     <>
-      <View style={{ backgroundColor: PANEL, borderRadius: 16, padding: 15, marginBottom: 16, borderWidth: 1, borderColor: '#205735' }}>
-        <Text style={{ color: GREEN, fontSize: 20, fontWeight: '900', textAlign: 'right' }}>
-          ⚽ مباريات كرة القدم
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 6 }}>
-          النتائج والمواعيد من مصدر بيانات المباريات
-        </Text>
+      <View style={{
+        backgroundColor: '#0D1D13',
+        borderRadius: 22,
+        padding: 18,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#28613C',
+        overflow: 'hidden',
+      }}>
+        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#8BCFA4', fontSize: 11, fontWeight: '800', textAlign: 'right', letterSpacing: 1 }}>
+              CHARARA SPORT DZ
+            </Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '900', textAlign: 'right', marginTop: 5 }}>
+              المباريات
+            </Text>
+            <Text style={{ color: '#A5B9AA', fontSize: 11, textAlign: 'right', marginTop: 5 }}>
+              تابع النتائج والمواعيد لحظة بلحظة
+            </Text>
+          </View>
+          <View style={{
+            width: 58,
+            height: 58,
+            borderRadius: 29,
+            backgroundColor: '#153D27',
+            borderWidth: 1,
+            borderColor: '#34794C',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginLeft: 12,
+          }}>
+            <Text style={{ fontSize: 29 }}>⚽</Text>
+          </View>
+        </View>
+        <View style={{
+          marginTop: 16,
+          paddingTop: 12,
+          borderTopWidth: 1,
+          borderTopColor: '#244532',
+          flexDirection: 'row-reverse',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <Text style={{ color: '#A5B9AA', fontSize: 11 }}>
+            اختر اليوم لمتابعة المباريات
+          </Text>
+          <Text style={{ color: GREEN, fontSize: 11, fontWeight: '900' }}>
+            ● تغطية المباريات
+          </Text>
+        </View>
       </View>
 
-      <View style={{ flexDirection: 'row-reverse', gap: 8, marginBottom: 15 }}>
+      <View style={{
+        flexDirection: 'row-reverse',
+        gap: 9,
+        marginBottom: 18,
+      }}>
         {[
-          { label: 'الأمس', value: 'yesterday' },
-          { label: 'اليوم', value: 'today' },
-          { label: 'الغد', value: 'tomorrow' },
+          { label: 'الأمس', value: 'yesterday', icon: '◀' },
+          { label: 'اليوم', value: 'today', icon: '●' },
+          { label: 'الغد', value: 'tomorrow', icon: '▶' },
         ].map(item => (
           <TouchableOpacity
             key={item.value}
             onPress={() => setMatchDay(item.value)}
             style={{
               flex: 1,
-              padding: 11,
-              borderRadius: 10,
+              paddingVertical: 13,
+              borderRadius: 15,
               alignItems: 'center',
-              backgroundColor: matchDay === item.value ? GREEN : PANEL,
+              justifyContent: 'center',
+              backgroundColor: matchDay === item.value ? '#00E676' : '#111F16',
               borderWidth: 1,
-              borderColor: matchDay === item.value ? GREEN : '#25352A',
+              borderColor: matchDay === item.value ? '#00E676' : '#31543B',
+              elevation: matchDay === item.value ? 4 : 0,
             }}
           >
-            <Text style={{ color: matchDay === item.value ? BG : '#FFFFFF', fontWeight: '800', fontSize: 12 }}>
+            <Text style={{
+              color: matchDay === item.value ? '#07140B' : '#91A398',
+              fontSize: 10,
+              marginBottom: 5,
+              fontWeight: '800',
+            }}>
+              {item.icon}
+            </Text>
+            <Text style={{
+              color: matchDay === item.value ? '#07140B' : '#FFFFFF',
+              fontWeight: '900',
+              fontSize: 13,
+            }}>
               {item.label}
             </Text>
+            {matchDay === item.value && (
+              <View style={{
+                width: 17,
+                height: 3,
+                borderRadius: 3,
+                backgroundColor: '#07552C',
+                marginTop: 6,
+              }} />
+            )}
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginBottom: 15 }}>
-        {['الكل', ...new Set(matches.map(match => match.league || 'غير محدد'))].map(league => (
-          <TouchableOpacity
-            key={league}
-            onPress={() => setSelectedLeagueFilter(league)}
-            style={{
-              backgroundColor: selectedLeagueFilter === league ? GREEN : PANEL,
-              borderColor: selectedLeagueFilter === league ? GREEN : '#25352A',
-              borderWidth: 1,
-              borderRadius: 20,
-              paddingVertical: 8,
-              paddingHorizontal: 13,
-            }}
-          >
-            <Text style={{ color: selectedLeagueFilter === league ? BG : '#FFFFFF', fontWeight: '800', fontSize: 11 }}>
-              {league}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={{ marginBottom: 17 }}>
+        <View style={{
+          flexDirection: 'row-reverse',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 11,
+        }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '900' }}>
+            🏆 البطولات
+          </Text>
+          <Text style={{ color: MUTED, fontSize: 10 }}>
+            تصفية المباريات
+          </Text>
+        </View>
+        <View style={{
+          flexDirection: 'row-reverse',
+          flexWrap: 'wrap',
+          gap: 8,
+        }}>
+          {['الكل', ...new Set(matches.map(match => match.league || 'غير محدد'))].map(league => (
+            <TouchableOpacity
+              key={league}
+              onPress={() => setSelectedLeagueFilter(league)}
+              style={{
+                backgroundColor: selectedLeagueFilter === league ? '#00E676' : '#111F16',
+                borderColor: selectedLeagueFilter === league ? '#00E676' : '#31543B',
+                borderWidth: 1,
+                borderRadius: 13,
+                paddingVertical: 10,
+                paddingHorizontal: 15,
+              }}
+            >
+              <Text style={{
+                color: selectedLeagueFilter === league ? '#07140B' : '#DCE9DF',
+                fontWeight: '900',
+                fontSize: 11,
+              }}>
+                {league}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <TouchableOpacity
         onPress={() => fetchMatches(matchDay)}
-        style={{ backgroundColor: '#153D27', padding: 11, borderRadius: 10, alignItems: 'center', marginBottom: 15 }}
+        disabled={matchesLoading}
+        activeOpacity={0.8}
+        style={{
+          backgroundColor: '#123D25',
+          borderColor: '#267A43',
+          borderWidth: 1,
+          paddingVertical: 13,
+          paddingHorizontal: 16,
+          borderRadius: 15,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 18,
+          flexDirection: 'row',
+          gap: 9,
+          opacity: matchesLoading ? 0.65 : 1,
+        }}
       >
-        <Text style={{ color: GREEN, fontWeight: '900' }}>↻ تحديث المباريات</Text>
+        <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>
+          {matchesLoading ? '◌' : '↻'}
+        </Text>
+        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 13 }}>
+          {matchesLoading ? 'جارٍ تحديث المباريات...' : 'تحديث المباريات'}
+        </Text>
       </TouchableOpacity>
 
       {matchesLoading ? (
@@ -1467,27 +1581,47 @@ const fetchMatches = async (day = 'today') => {
           <View
             key={`${match.url}-${index}`}
             style={{
-              backgroundColor: PANEL,
-              borderRadius: 15,
-              padding: 14,
-              marginBottom: 11,
+              backgroundColor: '#0D1A12',
+              borderRadius: 20,
+              padding: 16,
+              marginBottom: 14,
               borderWidth: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? 2 : 1,
-              borderColor: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? '#FFD700' : '#24372B',
+              borderColor: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? '#FFD700' : (/الشوط الأول|الشوط الثاني|استراحة بين الشوطين|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || '')) ? GREEN : '#28543A'),
+              shadowColor: GREEN,
+              shadowOpacity: 0.12,
+              shadowRadius: 8,
+              elevation: 3,
             }}
           >
-            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
+                {match.leagueLogo ? (
+                  <Image source={{ uri: match.leagueLogo }} style={{ width: 22, height: 22, resizeMode: 'contain', marginLeft: 7 }} />
+                ) : null}
+                <Text numberOfLines={1} style={{ color: '#DCECE0', fontSize: 11, fontWeight: '800', flex: 1, textAlign: 'right' }}>
+                  {match.league || 'بطولة أخرى'}
+                </Text>
+              </View>
+              {/الشوط الأول|الشوط الثاني|استراحة بين الشوطين|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || '')) ? (
+                <View style={{ backgroundColor: '#153D27', borderColor: GREEN, borderWidth: 1, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, marginRight: 8, flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: GREEN, marginRight: 5 }} />
+                  <Text style={{ color: GREEN, fontSize: 10, fontWeight: '900' }}>مباشر الآن</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={{ color: '#A9BCAF', textAlign: 'center', fontSize: 11, marginBottom: 13, fontWeight: '700' }}>
               {match.status || 'موعد المباراة'}  •  {match.time || '--:--'}
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
+                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 42, height: 42, resizeMode: 'contain', marginHorizontal: 6 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
                 <TouchableOpacity onPress={() => toggleFavoriteTeam(match.home)} style={{ padding: 5 }}>
                   <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
                 </TouchableOpacity>
               </View>
-              <View style={{ backgroundColor: '#07100A', paddingHorizontal: 13, paddingVertical: 9, borderRadius: 9 }}>
+              <View style={{ backgroundColor: '#07100A', paddingHorizontal: 17, paddingVertical: 12, borderRadius: 13, borderWidth: 1, borderColor: '#28623D', minWidth: 76, alignItems: 'center' }}>
                 <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', writingDirection: 'ltr' }}>
                   {Array.isArray(match.score) && match.score.length >= 2
                     ? `${match.score[0]} - ${match.score[1]}`
