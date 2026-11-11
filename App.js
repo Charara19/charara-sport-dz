@@ -2957,39 +2957,122 @@ const fetchMatches = async (day = 'today') => {
             />
           </View>
         ) : selectedMatch ? (
-          <View style={{ backgroundColor: '#101A14', borderRadius: 22, padding: 20, marginBottom: 18, borderWidth: 1, borderColor: '#245A38', elevation: 7, shadowColor: '#00E676', shadowOpacity: 0.10, shadowRadius: 12 }}>
-            <Text style={{ color: GREEN, fontSize: 22, fontWeight: '900', textAlign: 'center', marginBottom: 20, letterSpacing: 0.5 }}>
-              تفاصيل المباراة
-            </Text>
-
-            <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 8 }}>
-              {selectedMatch.league || 'بطولة غير محددة'}
-            </Text>
-            <Text style={{ color: GREEN, textAlign: 'center', fontWeight: '800', marginBottom: 20 }}>
-              {translateFixtureStatus(fixtureStatus) || selectedMatch.status || 'موعد المباراة'} • {selectedMatch.time || '--:--'}
-            </Text>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' }}>
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                {selectedMatch.homeLogo ? <Image source={{ uri: selectedMatch.homeLogo }} style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 12 }} /> : null}
-                <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
-                  {selectedMatch.home || 'الفريق الأول'}
-                </Text>
+          <>
+          <ImageBackground
+            source={{ uri: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1400&q=85' }}
+            style={{
+              borderRadius: 22,
+              overflow: 'hidden',
+              marginBottom: 18,
+              borderWidth: 1,
+              borderColor: '#27834A',
+            }}
+            imageStyle={{ opacity: 0.72 }}
+          >
+            <View style={{
+              backgroundColor: 'rgba(3,16,9,0.78)',
+              padding: 17,
+            }}>
+              <View style={{ flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', marginBottom: 17 }}>
+                <View style={{
+                  backgroundColor: 'rgba(0,230,118,0.15)',
+                  borderWidth: 1,
+                  borderColor: '#00A854',
+                  borderRadius: 22,
+                  paddingVertical: 9,
+                  paddingHorizontal: 18,
+                }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14, textAlign: 'center' }}>
+                    🏆 {selectedMatch.league || 'بطولة غير محددة'}
+                  </Text>
+                </View>
               </View>
 
-              <Text style={{ color: GREEN, fontSize: 30, fontWeight: '900', marginHorizontal: 10, writingDirection: 'ltr' }}>
-                {Array.isArray(selectedMatch.score) && selectedMatch.score.length >= 2
-                  ? `${selectedMatch.score[0]} - ${selectedMatch.score[1]}`
-                  : 'VS'}
-              </Text>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-around',
+                minHeight: 145,
+              }}>
+                <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
+                  {selectedMatch.homeLogo ? (
+                    <Image
+                      source={{ uri: selectedMatch.homeLogo }}
+                      style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 10 }}
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 42 }}>⚽</Text>
+                  )}
+                  <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center', fontSize: 14 }}>
+                    {selectedMatch.home || 'الفريق الأول'}
+                  </Text>
+                </View>
 
-              <View style={{ flex: 1, alignItems: 'center' }}>
-                {selectedMatch.awayLogo ? <Image source={{ uri: selectedMatch.awayLogo }} style={{ width: 65, height: 65, resizeMode: 'contain', marginBottom: 8 }} /> : null}
-                <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center' }}>
-                  {selectedMatch.away || 'الفريق الثاني'}
+                <View style={{ alignItems: 'center', justifyContent: 'center', minWidth: 116 }}>
+                  <View style={{
+                    backgroundColor: 'rgba(0,0,0,0.78)',
+                    borderWidth: 1,
+                    borderColor: '#36764B',
+                    borderRadius: 17,
+                    paddingVertical: 12,
+                    paddingHorizontal: 15,
+                    minWidth: 112,
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{
+                      color: '#FFFFFF',
+                      fontSize: 34,
+                      fontWeight: '900',
+                      writingDirection: 'ltr',
+                    }}>
+                      {Array.isArray(selectedMatch.score) && selectedMatch.score.length >= 2
+                        ? `${selectedMatch.score[0]} - ${selectedMatch.score[1]}`
+                        : 'VS'}
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: GREEN,
+                    borderRadius: 18,
+                    paddingVertical: 6,
+                    paddingHorizontal: 13,
+                    marginTop: 11,
+                  }}>
+                    <Text style={{ color: '#06200F', fontSize: 12, fontWeight: '900' }}>
+                      {translateFixtureStatus(fixtureStatus) || selectedMatch.status || 'موعد المباراة'}
+                    </Text>
+                  </View>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800', marginTop: 7 }}>
+                    ◷ {selectedMatch.time || '--:--'}
+                  </Text>
+                </View>
+
+                <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
+                  {selectedMatch.awayLogo ? (
+                    <Image
+                      source={{ uri: selectedMatch.awayLogo }}
+                      style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 10 }}
+                    />
+                  ) : (
+                    <Text style={{ fontSize: 42 }}>⚽</Text>
+                  )}
+                  <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center', fontSize: 14 }}>
+                    {selectedMatch.away || 'الفريق الثاني'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{
+                marginTop: 17,
+                paddingTop: 11,
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(0,230,118,0.35)',
+              }}>
+                <Text style={{ color: '#B9D9C3', fontSize: 11, textAlign: 'center', fontWeight: '700' }}>
+                  شرارة سبورت DZ • تفاصيل المباراة
                 </Text>
               </View>
             </View>
+          </ImageBackground>
 
             <View style={{ backgroundColor: '#101A14', borderRadius: 18, padding: 16, marginTop: 20, marginBottom: 12, borderWidth: 1, borderColor: '#245A38' }}>
   <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 14 }}>
@@ -3650,7 +3733,7 @@ const fetchMatches = async (day = 'today') => {
             >
               <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة داخل التطبيق</Text>
             </TouchableOpacity>
-          </View>
+                  </>
         ) : tab === 'الرئيسية' ? (
           <Home />
         ) : tab === 'البث المباشر' ? (
