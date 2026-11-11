@@ -13,6 +13,7 @@ import {
   SafeAreaView,
   Linking,
   Image,
+  ImageBackground,
   Alert,
   Modal,
 } from 'react-native';
@@ -1531,26 +1532,39 @@ const fetchMatches = async (day = 'today') => {
 
   const Home = () => (
     <>
-      <View style={styles.hero}>
-        <Text style={styles.heroSmall}>
-          مرحباً بك في عالم كرة القدم
-        </Text>
-        <Text style={styles.heroTitle}>كل الرياضة،</Text>
-        <Text style={[styles.heroTitle, { color: GREEN }]}>
-          في مكان واحد
-        </Text>
-        <Text style={styles.heroDesc}>
-          تابع النتائج والمباريات والبطولات العالمية
-        </Text>
-        <TouchableOpacity
-          style={styles.heroButton}
-          onPress={() => setTab('المباريات')}
-        >
-          <Text style={styles.heroButtonText}>
-            اكتشف المباريات ←
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1400&q=85' }}
+        imageStyle={{ borderRadius: 26, opacity: 0.62 }}
+        style={{
+          backgroundColor: '#10251A',
+          borderRadius: 26,
+          overflow: 'hidden',
+          marginBottom: 27,
+          borderWidth: 1,
+          borderColor: '#267A46',
+          minHeight: 260,
+        }}
+      >
+        <View style={{
+          backgroundColor: 'rgba(4,12,7,0.62)',
+          padding: 24,
+          minHeight: 260,
+          justifyContent: 'center',
+        }}>
+          <Text style={styles.heroSmall}>⚽ شرارة سبورت DZ • عالم كرة القدم</Text>
+          <Text style={styles.heroTitle}>عِش شغف</Text>
+          <Text style={[styles.heroTitle, { color: GREEN }]}>كرة القدم</Text>
+          <Text style={styles.heroDesc}>
+            النتائج والمباريات والبطولات العالمية في مكان واحد
           </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.heroButton}
+            onPress={() => setTab('المباريات')}
+          >
+            <Text style={styles.heroButtonText}>اكتشف المباريات ←</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
 
       <SectionTitle title="المباريات" action="عرض الكل" />
 
@@ -1708,12 +1722,14 @@ const fetchMatches = async (day = 'today') => {
       <View style={styles.leagues}>
         {[
           ['🏆', 'دوري أبطال أوروبا'],
+          ['🌍', 'كأس أمم إفريقيا'],
           ['🇬🇧', 'الدوري الإنجليزي'],
           ['🇪🇸', 'الدوري الإسباني'],
           ['🇩🇪', 'الدوري الألماني'],
           ['🇮🇹', 'الدوري الإيطالي'],
           ['🇫🇷', 'الدوري الفرنسي'],
-          ['🇩🇿', 'الدوري الجزائري'],
+          ['🇪🇺', 'الدوري الأوروبي'],
+          ['⭐', 'دوري المؤتمر الأوروبي'],
         ].map((item, index) => (
           <TouchableOpacity
             key={index}
@@ -3874,28 +3890,33 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
   leagues: {
-    gap: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 11,
     marginBottom: 25,
   },
   league: {
-    flexDirection: 'row-reverse',
+    width: '48.5%',
+    minHeight: 112,
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#111A15',
-    padding: 17,
-    borderRadius: 17,
+    padding: 12,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: '#294535',
   },
   leagueIcon: {
-    fontSize: 22,
-    marginLeft: 12,
+    fontSize: 27,
+    marginBottom: 8,
   },
   leagueName: {
     color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'right',
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   arrow: {
     color: GREEN,
