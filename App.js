@@ -711,6 +711,10 @@ const fetchMatches = async (day = 'today') => {
   useEffect(() => {
     if (tab !== 'المباريات') return;
 
+    // جلب المباريات فور فتح الصفحة
+    fetchMatches(matchDay);
+
+    // تحديث تلقائي كل دقيقة
     const timer = setInterval(() => {
       fetchMatches(matchDay);
     }, 60000);
