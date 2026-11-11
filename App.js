@@ -1566,6 +1566,49 @@ const fetchMatches = async (day = 'today') => {
         </View>
       </ImageBackground>
 
+      <View style={{ marginBottom: 25 }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 'bold', textAlign: 'right', marginBottom: 15 }}>
+          الوصول السريع
+        </Text>
+        <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          {[
+            { icon: '⚽', label: 'المباريات', tab: 'المباريات' },
+            { icon: '📺', label: 'البث المباشر', tab: 'البث المباشر' },
+            { icon: '🏆', label: 'البطولات', tab: 'البطولات' },
+            { icon: '⭐', label: 'المفضلة', tab: 'المفضلة' },
+          ].map(item => (
+            <TouchableOpacity
+              key={item.tab}
+              onPress={() => setTab(item.tab)}
+              style={{ flex: 1, alignItems: 'center' }}
+              activeOpacity={0.75}
+            >
+              <View style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: '#123522',
+                borderWidth: 1.5,
+                borderColor: GREEN,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 8,
+              }}>
+                <Text style={{ fontSize: 25 }}>{item.icon}</Text>
+              </View>
+              <Text style={{
+                color: '#EAF5ED',
+                fontSize: 10,
+                fontWeight: '600',
+                textAlign: 'center',
+              }}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
       <SectionTitle title="المباريات" action="عرض الكل" />
 
       <View style={styles.categories}>
