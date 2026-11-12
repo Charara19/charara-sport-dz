@@ -2186,7 +2186,42 @@ const fetchMatches = async (day = 'today') => {
               if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
                 throw new Error('Standings request failed');
               }
-              return payload.data;
+              let rows = payload.data;
+
+              if (Number(leagueId) === 123) {
+                try {
+                  const espnResponse = await fetch(
+                    'https://site.api.espn.com/apis/v2/sports/soccer/caf.nations/standings'
+                  );
+                  const espnPayload = await espnResponse.json();
+                  const logoMap = new Map();
+
+                  (espnPayload.children || []).forEach(group => {
+                    (group.standings?.entries || []).forEach(entry => {
+                      const name = String(
+                        entry.team?.displayName || entry.team?.name || ''
+                      ).trim().toLowerCase();
+                      const logo = entry.team?.logos?.[0]?.href;
+                      if (name && logo) logoMap.set(name, logo);
+                    });
+                  });
+
+                  rows = rows.map(row => {
+                    const name = String(row.team?.name || '').trim().toLowerCase();
+                    return {
+                      ...row,
+                      team: {
+                        ...row.team,
+                        logo: logoMap.get(name) || row.team?.logo || '',
+                      },
+                    };
+                  });
+                } catch (error) {
+                  console.log('AFCON logos unavailable:', error.message);
+                }
+              }
+
+              return rows;
             });
 
       request
@@ -2450,7 +2485,18 @@ const fetchMatches = async (day = 'today') => {
                             fontSize: 12,
                             fontWeight: 'bold',
                           }}>
-                            {row.team?.short_name || row.team?.name || '—'}
+                            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
+                        {row.team?.logo ? (
+                          <Image
+                            source={{ uri: row.team.logo }}
+                            style={{ width: 24, height: 24, marginLeft: 8 }}
+                            resizeMode="contain"
+                          />
+                        ) : null}
+                        <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                          {row.team?.short_name || row.team?.name || '—'}
+                        </Text>
+                      </View>
                           </Text>
                         </TouchableOpacity>
                         <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
