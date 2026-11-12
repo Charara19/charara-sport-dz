@@ -2404,40 +2404,57 @@ const fetchMatches = async (day = 'today') => {
           </View>
 
           <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' }}>
-            البطولات المتاحة
-          </Text>
+  اختر البطولة
+</Text>
 
-          {leagues.map((league) => {
-            const active = selectedLeague === league.name;
-            return (
-              <TouchableOpacity
-                key={league.name}
-                onPress={() => setSelectedLeague(league.name)}
-                activeOpacity={0.8}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: active ? '#14251A' : '#101713',
-                  borderWidth: 1,
-                  borderColor: active ? GREEN : '#203329',
-                  borderRadius: 16,
-                  padding: 16,
-                }}
-              >
-                <Text style={{ color: GREEN, fontSize: 20 }}>‹</Text>
-                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 'bold' }}>
-                    {league.name}
-                  </Text>
-                  <Text style={{ color: MUTED, fontSize: 12, marginTop: 5 }}>
-                    {league.country}
-                  </Text>
-                </View>
-                <Text style={{ fontSize: 27, marginLeft: 13 }}>{league.icon}</Text>
-              </TouchableOpacity>
-            );
-          })}
-
+<ScrollView
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={{
+    flexDirection: 'row-reverse',
+    gap: 10,
+    paddingVertical: 8,
+  }}
+>
+  {leagues.map((league) => {
+    const active = selectedLeague === league.name;
+    return (
+      <TouchableOpacity
+        key={league.name}
+        onPress={() => setSelectedLeague(league.name)}
+        activeOpacity={0.8}
+        style={{
+          width: 155,
+          minHeight: 112,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: active ? '#173522' : '#101713',
+          borderWidth: active ? 2 : 1,
+          borderColor: active ? GREEN : '#26372D',
+          borderRadius: 17,
+          padding: 12,
+        }}
+      >
+        <Text style={{ fontSize: 27 }}>{league.icon}</Text>
+        <Text
+          numberOfLines={2}
+          style={{
+            color: active ? GREEN : '#FFFFFF',
+            fontSize: 13,
+            fontWeight: 'bold',
+            textAlign: 'center',
+            marginTop: 8,
+          }}
+        >
+          {league.name}
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+          {league.country}
+        </Text>
+      </TouchableOpacity>
+    );
+  })}
+</ScrollView>
           <View style={{
             backgroundColor: '#101A14',
             borderWidth: 1,
