@@ -109,6 +109,41 @@ const beinChannels = [
   })),
 ];
 
+const officialSportsChannels = [
+  {
+    name: 'Arryadia',
+    country: 'المغرب',
+    subtitle: 'القناة الرياضية المغربية - البث الرسمي عبر SNRT',
+    icon: '🇲🇦',
+    url: 'https://snrtlive.ma/arryadia',
+    availability: 'قد يختلف التوفر حسب المنطقة وحقوق البث',
+  },
+  {
+    name: 'CBS Sports Golazo',
+    country: 'الولايات المتحدة',
+    subtitle: 'شبكة CBS الرسمية لكرة القدم',
+    icon: '⚽',
+    url: 'https://www.cbs.com/live-tv/stream/golazo',
+    availability: 'قد يكون البث مقيداً جغرافياً',
+  },
+  {
+    name: 'A Spor',
+    country: 'تركيا',
+    subtitle: 'الموقع الرسمي للقناة الرياضية',
+    icon: '🇹🇷',
+    url: 'https://www.aspor.com.tr/',
+    availability: 'تحقق من البث المتاح على الموقع الرسمي',
+  },
+  {
+    name: 'TF1+ Sport',
+    country: 'فرنسا',
+    subtitle: 'قسم الرياضة الرسمي لخدمة TF1+',
+    icon: '🇫🇷',
+    url: 'https://www.tf1.fr/fr-dz/programmes-tv/sport',
+    availability: 'المحتوى متاح وفق البلد وحقوق العرض',
+  },
+];
+
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [language, setLanguage] = useState("ar");
@@ -1124,7 +1159,34 @@ const fetchMatches = async (day = 'today') => {
         </View>
       ))}
 
-      <SectionTitle title="القنوات الجزائرية الرسمية" />
+
+            <SectionTitle title="قنوات ومنصات رياضية عالمية" />
+            <Text style={styles.channelIntro}>
+              روابط الناشرين الرسميين. قد يتطلب بعض المحتوى اشتراكاً أو يكون محدوداً جغرافياً.
+            </Text>
+            {officialSportsChannels.map((channel) => (
+              <View key={channel.name} style={styles.channelCard}>
+                <View style={styles.channelInfo}>
+                  <Text style={styles.channelIcon}>{channel.icon}</Text>
+                  <View style={styles.channelText}>
+                    <Text style={styles.channelName}>{channel.name}</Text>
+                    <Text style={styles.channelSubtitle}>
+                      {channel.country} · {channel.subtitle}
+                    </Text>
+                    <Text style={styles.channelStatus}>{channel.availability}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.channelButton}
+                  onPress={() => openPlatform(channel.url)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.channelButtonText}>افتح المصدر الرسمي ←</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <SectionTitle title="القنوات الجزائرية الرسمية" />
 
       <View style={styles.channelIntro}>
         <Text style={styles.channelIntroTitle}>🇩🇿 التلفزيون الجزائري EPTV</Text>
