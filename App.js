@@ -2032,12 +2032,18 @@ const fetchMatches = async (day = 'today') => {
     };
 
     const loadTeamDetails = async (team) => {
-      if (!team?.slug) return;
+      if (!team) return;
 
       setSelectedTeam(team);
       setTeamDetails(null);
       setTeamError('');
       setTeamLoading(true);
+
+      if (!team.slug) {
+        setTeamError('لا تتوفر بيانات قائمة هذا المنتخب في مصدر البيانات الحالي.');
+        setTeamLoading(false);
+        return;
+      }
 
       try {
         const response = await fetch(
@@ -2431,7 +2437,7 @@ const fetchMatches = async (day = 'today') => {
                         </Text>
                         <TouchableOpacity
                           onPress={() => {
-                            if (selectedLeague === 'تصفيات أمم إفريقيا' && row.team?.slug) {
+                            if (row.team) {
                               loadTeamDetails(row.team);
                             }
                           }}
@@ -2439,7 +2445,7 @@ const fetchMatches = async (day = 'today') => {
                           style={{ flex: 1 }}
                         >
                           <Text numberOfLines={1} style={{
-                            color: selectedLeague === 'تصفيات أمم إفريقيا' ? GREEN : '#FFFFFF',
+                            color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF',
                             textAlign: 'right',
                             fontSize: 12,
                             fontWeight: 'bold',
@@ -2573,7 +2579,7 @@ const fetchMatches = async (day = 'today') => {
               )}
             </View>
 
-            {selectedLeague === 'تصفيات أمم إفريقيا' && selectedTeam && (
+            {['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) && selectedTeam && (
               <View style={{
                 backgroundColor: '#111A15',
                 borderWidth: 1,
