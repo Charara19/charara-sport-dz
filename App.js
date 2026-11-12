@@ -74,28 +74,37 @@ const beinChannels = [
   ...Array.from({ length: 9 }, (_, i) => ({
     name: `beIN SPORTS ${i + 1}`,
     subtitle: 'القنوات الرياضية الرئيسية',
+    group: 'القنوات الرئيسية',
     icon: '⚽',
   })),
-  { name: 'beIN SPORTS NEWS', subtitle: 'الأخبار الرياضية', icon: '📰' },
-  { name: 'beIN SPORTS 4K', subtitle: 'البث بجودة فائقة حسب الباقة', icon: '📺' },
-  { name: 'beIN SPORTS NBA', subtitle: 'كرة السلة الأمريكية', icon: '🏀' },
-  { name: 'beIN SPORTS ENGLISH 1', subtitle: 'البث باللغة الإنجليزية', icon: '🇬🇧' },
+  { name: 'beIN SPORTS NEWS', subtitle: 'الأخبار الرياضية',
+    group: 'قنوات متخصصة', icon: '📰' },
+  { name: 'beIN SPORTS 4K', subtitle: 'البث بجودة فائقة حسب الباقة',
+    group: 'قنوات متخصصة', icon: '📺' },
+  { name: 'beIN SPORTS NBA', subtitle: 'كرة السلة الأمريكية',
+    group: 'قنوات متخصصة', icon: '🏀' },
+  { name: 'beIN SPORTS ENGLISH 1', subtitle: 'البث باللغة الإنجليزية',
+    group: 'قنوات متخصصة', icon: '🇬🇧' },
   { name: 'beIN SPORTS ENGLISH 2', subtitle: 'البث باللغة الإنجليزية', icon: '🇬🇧' },
-  { name: 'beIN SPORTS FRENCH 1', subtitle: 'البث باللغة الفرنسية', icon: '🇫🇷' },
+  { name: 'beIN SPORTS FRENCH 1', subtitle: 'البث باللغة الفرنسية',
+    group: 'قنوات متخصصة', icon: '🇫🇷' },
   { name: 'beIN SPORTS FRENCH 2', subtitle: 'البث باللغة الفرنسية', icon: '🇫🇷' },
   ...Array.from({ length: 9 }, (_, i) => ({
     name: `beIN SPORTS XTRA ${i + 1}`,
     subtitle: 'قنوات رياضية إضافية حسب التوفر',
+    group: 'قنوات XTRA',
     icon: '➕',
   })),
   ...Array.from({ length: 6 }, (_, i) => ({
     name: `beIN SPORTS MAX ${i + 1}`,
     subtitle: 'قنوات فعاليات ومباريات حسب التوفر',
+    group: 'قنوات MAX',
     icon: '🏆',
   })),
   ...Array.from({ length: 7 }, (_, i) => ({
     name: i === 0 ? 'beIN SPORTS AFC' : `beIN SPORTS AFC ${i}`,
     subtitle: 'قنوات مسابقات الاتحاد الآسيوي حسب التوفر',
+    group: 'قنوات AFC',
     icon: '🌏',
   })),
 ];
@@ -215,10 +224,6 @@ export default function App() {
   const fixturesCacheRef = useRef({});
   const [selectedBroadcastCountry, setSelectedBroadcastCountry] = useState('الجزائر');
   const [streamUrl, setStreamUrl] = useState('');
-  const [showSirTv, setShowSirTv] = useState(false);
-  const [sirTvReload, setSirTvReload] = useState(0);
-  const [showBtvSite, setShowBtvSite] = useState(false);
-  const [btvReload, setBtvReload] = useState(0);
   const [internalMatchUrl, setInternalMatchUrl] = useState('');
   const videoViewRef = useRef(null);
   const player = useVideoPlayer(null);
@@ -1091,57 +1096,6 @@ const fetchMatches = async (day = 'today') => {
         </View>
       </View>
 
-      <SectionTitle title="BTV.pics داخل شرارة سبورت" />
-
-      <View style={styles.playerCard}>
-        <Text style={styles.sectionTitle}>
-          📺 موقع BTV.pics
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-          تصفح الموقع داخل التطبيق. محتوى البث وحقوق إعادة توزيعه غير متحقق منها.
-        </Text>
-
-        <TouchableOpacity
-          style={[styles.playerButton, { marginTop: 12 }]}
-          onPress={() => setShowBtvSite(value => !value)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.playerButtonText}>
-            {showBtvSite ? 'إخفاء الموقع ▲' : '▶ فتح BTV.pics داخل التطبيق'}
-          </Text>
-        </TouchableOpacity>
-
-        {showBtvSite && (
-          <>
-            <WebView
-              key={btvReload}
-              source={{ uri: 'https://btv.pics/' }}
-              style={{ height: 550, marginTop: 12, backgroundColor: '#000000' }}
-              javaScriptEnabled
-              domStorageEnabled
-              allowsFullscreenVideo
-              setSupportMultipleWindows={false}
-              javaScriptCanOpenWindowsAutomatically={false}
-              startInLoadingState
-              mediaPlaybackRequiresUserAction
-              onError={() => Alert.alert(
-                'تعذر تحميل BTV.pics',
-                'تحقق من الإنترنت أو جرّب لاحقاً.'
-              )}
-            />
-
-            <TouchableOpacity
-              style={[styles.playerButton, { marginTop: 10 }]}
-              onPress={() => setBtvReload(value => value + 1)}
-            >
-              <Text style={styles.playerButtonText}>
-                ↻ إعادة تحميل الموقع
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-
       <SectionTitle title="منصات المشاهدة الرسمية" />
 
       {platforms.map((platform) => (
@@ -1179,8 +1133,6 @@ const fetchMatches = async (day = 'today') => {
           سيُفعّل عند توفر رابط بث رسمي قابل للتشغيل.
         </Text>
       </View>
-
-      <SectionTitle title="مشغل شرارة الداخلي" />
       <View style={styles.playerCard}>
         <Text style={styles.sectionTitle}>
           📺 مشاهدة المباراة عبر Siiir TV
@@ -1286,32 +1238,94 @@ const fetchMatches = async (day = 'today') => {
         </Text>
       </View>
 
-      <View style={styles.noticeCard}>
-        <Text style={styles.noticeTitle}>📺 قنوات beIN SPORTS</Text>
-        <Text style={styles.noticeText}>
-          قائمة القنوات الرياضية. اضغط لفتح دليل beIN الرسمي والتحقق من البرامج والتوفر.
+      <View style={{
+        backgroundColor: '#101D16',
+        borderRadius: 20,
+        padding: 18,
+        marginTop: 8,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#28613C',
+      }}>
+        <Text style={{ color: GREEN, fontSize: 12, fontWeight: '900', textAlign: 'right' }}>
+          CHARARA SPORT DZ · ARABIC SPORTS
         </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 23, fontWeight: '900', textAlign: 'right', marginTop: 9 }}>
+          📺 القنوات الرياضية العربية
+        </Text>
+        <Text style={{ color: '#B5C8BA', fontSize: 13, lineHeight: 22, textAlign: 'right', marginTop: 8 }}>
+          اكتشف قنوات beIN SPORTS وبرامجها ومواعيد المباريات عبر دليلها الرسمي.
+        </Text>
+        <View style={{
+          alignSelf: 'flex-end',
+          backgroundColor: '#173D28',
+          borderRadius: 20,
+          paddingHorizontal: 12,
+          paddingVertical: 7,
+          marginTop: 12,
+        }}>
+          <Text style={{ color: '#8BE6A9', fontSize: 11, fontWeight: '900' }}>
+            ✓ دليل القنوات الرسمي
+          </Text>
+        </View>
+        <Text style={{ color: '#E8C77A', fontSize: 11, textAlign: 'right', marginTop: 12, lineHeight: 19 }}>
+          المشاهدة المباشرة داخل التطبيق ستتوفر بعد تأمين حقوق البث واتفاقية التوزيع في الجزائر.
+        </Text>
+        <TouchableOpacity
+          style={{
+            backgroundColor: GREEN,
+            padding: 13,
+            borderRadius: 12,
+            alignItems: 'center',
+            marginTop: 14,
+          }}
+          onPress={() => openPlatform('https://www.beinsports.com/en-mena/tv-guide')}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#06130A', fontSize: 13, fontWeight: '900' }}>
+            افتح دليل beIN الرسمي ←
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {beinChannels.map((channel) => (
-        <View key={channel.name} style={styles.channelCard}>
-          <View style={styles.channelInfo}>
-            <Text style={styles.channelIcon}>{channel.icon}</Text>
-            <View style={styles.channelText}>
-              <Text style={styles.channelName}>{channel.name}</Text>
-              <Text style={styles.channelSubtitle}>{channel.subtitle}</Text>
-              <Text style={styles.channelStatus}>دليل beIN الرسمي</Text>
-            </View>
+      {[
+        { title: 'القنوات الرئيسية', group: 'القنوات الرئيسية', icon: '⚽' },
+        { title: 'قنوات XTRA', group: 'قنوات XTRA', icon: '➕' },
+        { title: 'قنوات MAX', group: 'قنوات MAX', icon: '🏆' },
+        { title: 'قنوات AFC', group: 'قنوات AFC', icon: '🌏' },
+        { title: 'القنوات المتخصصة', group: 'قنوات متخصصة', icon: '📺' },
+      ].map((section) => {
+        const groupChannels = beinChannels.filter(
+          channel => channel.group === section.group
+        );
+
+        if (groupChannels.length === 0) return null;
+
+        return (
+          <View key={section.group}>
+            <SectionTitle title={section.icon + ' ' + section.title + ' (' + groupChannels.length + ')'} />
+            {groupChannels.map((channel) => (
+              <View key={channel.name} style={styles.channelCard}>
+                <View style={styles.channelInfo}>
+                  <Text style={styles.channelIcon}>{channel.icon}</Text>
+                  <View style={styles.channelText}>
+                    <Text style={styles.channelName}>{channel.name}</Text>
+                    <Text style={styles.channelSubtitle}>{channel.subtitle}</Text>
+                    <Text style={styles.channelStatus}>دليل beIN الرسمي</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.channelButton}
+                  onPress={() => openPlatform('https://www.beinsports.com/en-mena/tv-guide')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.channelButtonText}>فتح دليل القنوات ←</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
           </View>
-          <TouchableOpacity
-            style={styles.channelButton}
-            onPress={() => openPlatform('https://www.beinsports.com/en-mena/tv-guide')}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.channelButtonText}>فتح دليل القنوات ←</Text>
-          </TouchableOpacity>
-        </View>
-      ))}
+        );
+      })}
 
       <View style={{ backgroundColor: PANEL, padding: 14, borderRadius: 14, marginBottom: 12, borderWidth: 1, borderColor: '#205735' }}>
         <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'right', marginBottom: 10 }}>
