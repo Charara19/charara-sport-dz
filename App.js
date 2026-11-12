@@ -2188,40 +2188,81 @@ const fetchMatches = async (day = 'today') => {
               }
               let rows = payload.data;
 
-              if (Number(leagueId) === 123) {
-                try {
-                  const espnResponse = await fetch(
-                    'https://site.api.espn.com/apis/v2/sports/soccer/caf.nations/standings'
-                  );
-                  const espnPayload = await espnResponse.json();
-                  const logoMap = new Map();
+              const espnLeagueCodes = {
+            '123': 'caf.nations',
+            '18': 'uefa.champions',
+            '24': 'eng.1',
+            '1': 'esp.1',
+            '2': 'ger.1',
+            '3': 'ita.1',
+            '9': 'fra.1',
+            '22': 'uefa.europa',
+            '23': 'uefa.europa.conf',
+          };
 
-                  (espnPayload.children || []).forEach(group => {
-                    (group.standings?.entries || []).forEach(entry => {
-                      const name = String(
-                        entry.team?.displayName || entry.team?.name || ''
-                      ).trim().toLowerCase();
-                      const logo = entry.team?.logos?.[0]?.href;
-                      if (name && logo) logoMap.set(name, logo);
-                    });
-                  });
+          const espnCode = espnLeagueCodes[String(leagueId)];
 
-                  rows = rows.map(row => {
-                    const name = String(row.team?.name || '').trim().toLowerCase();
-                    return {
-                      ...row,
-                      team: {
-                        ...row.team,
-                        logo: logoMap.get(name) || row.team?.logo || '',
-                      },
-                    };
-                  });
-                } catch (error) {
-                  console.log('AFCON logos unavailable:', error.message);
-                }
+          if (espnCode) {
+            try {
+              const espnResponse = await fetch(
+                'https://site.api.espn.com/apis/v2/sports/soccer/' +
+                espnCode + '/standings'
+              );
+
+              if (!espnResponse.ok) {
+                throw new Error('ESPN logos request failed');
               }
 
-              return rows;
+              const espnPayload = await espnResponse.json();
+              const logoMap = new Map();
+
+              const normalizeName = value => {
+                const name = String(value || '')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]/g, '');
+
+                const aliases = {
+                  psg: 'parissaintgermain',
+                  parissg: 'parissaintgermain',
+                  internazionale: 'intermilan',
+                  inter: 'intermilan',
+                  manutd: 'manchesterunited',
+                  manunited: 'manchesterunited',
+                  brighton: 'brightonandhovealbion',
+                  leverkusen: 'bayerleverkusen',
+                };
+
+                return aliases[name] || name;
+              };
+
+              (espnPayload.children || []).forEach(group => {
+                (group.standings?.entries || []).forEach(entry => {
+                  const name = normalizeName(
+                    entry.team?.displayName || entry.team?.name
+                  );
+                  const logo = entry.team?.logos?.[0]?.href;
+                  if (name && logo) logoMap.set(name, logo);
+                });
+              });
+
+              rows = rows.map(row => {
+                const name = normalizeName(row.team?.name);
+                return {
+                  ...row,
+                  team: {
+                    ...row.team,
+                    logo: logoMap.get(name) || row.team?.logo || '',
+                  },
+                };
+              });
+            } catch (error) {
+              console.log('Team logos unavailable:', error.message);
+            }
+          }
+
+          return rows;
             });
 
       request
