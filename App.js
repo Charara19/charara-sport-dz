@@ -3312,34 +3312,65 @@ useEffect(() => {
 
 
                     {(() => {
-                      const pitchPlayers = (lineup.startXI || [])
-                        .map((item, index) => {
-                          const player = item.player || {};
-                          const parts = String(player.grid || '').split(':').map(Number);
-                          return {
-                            player,
-                            index,
-                            row: parts[0],
-                            col: parts[1],
-                          };
-                        })
-                        .filter(p =>
-                          Number.isFinite(p.row) &&
-                          Number.isFinite(p.col) &&
-                          p.row >= 1 &&
-                          p.col >= 1
-                        );
+                      const originalPlayers = (lineup.startXI || []).map((item, index) => ({
+  player: item.player || {},
+  index,
+}));
 
-                      if (pitchPlayers.length === 0) {
-                        return (
-                          <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 12 }}>
-                            مواقع اللاعبين على الملعب غير متوفرة من مصدر البيانات.
-                          </Text>
-                        );
-                      }
+const hasCompleteGrid = originalPlayers.length > 0 &&
+  originalPlayers.every(entry => {
+    const parts = String(entry.player.grid || '').split(':').map(Number);
+    return parts.length === 2 &&
+      Number.isFinite(parts[0]) &&
+      Number.isFinite(parts[1]) &&
+      parts[0] >= 1 &&
+      parts[1] >= 1;
+  });
 
-                      const maxRow = Math.max(...pitchPlayers.map(p => p.row));
-                      const maxCol = Math.max(...pitchPlayers.map(p => p.col));
+let pitchPlayers;
+
+if (hasCompleteGrid) {
+  pitchPlayers = originalPlayers.map(entry => {
+    const parts = String(entry.player.grid).split(':').map(Number);
+    return {
+      ...entry,
+      row: parts[0],
+      col: parts[1],
+    };
+  });
+} else {
+  const groups = [
+    { rank: 1, test: /GOALKEEPER|KEEPER|\\bGK\\b/ },
+    { rank: 2, test: /DEFENDER|\\bDEF\\b/ },
+    { rank: 3, test: /MIDFIELDER|\\bMID\\b/ },
+    { rank: 4, test: /FORWARD|ATTACKER|STRIKER|\\bFWD\\b/ },
+  ];
+
+  pitchPlayers = originalPlayers.map(entry => {
+    const position = String(entry.player.pos || '').toUpperCase();
+    const group = groups.find(item => item.test.test(position));
+    return {
+      ...entry,
+      row: group ? group.rank : 3,
+    };
+  });
+
+  pitchPlayers.forEach((entry, index) => {
+    const sameLine = pitchPlayers.filter(item => item.row === entry.row);
+    entry.col = sameLine.indexOf(entry) + 1;
+  });
+}
+
+if (pitchPlayers.length === 0) {
+  return (
+    <Text style={{ color: MUTED, textAlign: 'center', marginBottom: 12 }}>
+      التشكيلة غير متوفرة.
+    </Text>
+  );
+}
+
+const maxRow = Math.max(...pitchPlayers.map(p => p.row));
+const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
                       return (
                         <View style={{
