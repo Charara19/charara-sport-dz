@@ -555,25 +555,98 @@ export default function App() {
 };
 
 const fetchMatches = async (day = 'today') => {
-    if (matchesRequestInProgressRef.current) return;
-    matchesRequestInProgressRef.current = true;
-    setMatchesLoading(true);
-    setMatchesError('');
+  if (matchesRequestInProgressRef.current) return;
 
+  matchesRequestInProgressRef.current = true;
+  setMatchesLoading(true);
+  setMatchesError('');
+
+  try {
+    const targetDate = getDateForMatchDay(day);
+    let sportApiMatches = [];
+    let faborMatches = [];
+
+    // تحميل المباريات من SportAPI وFabor
+    const results = await Promise.allSettled([
+      fetch(`${AFCON_API_URL}fixtures?date=${targetDate}`),
+      fetch(`${API_URL}?day=${day}`)
+    ]);
+
+    // المصدر الأساسي: SportAPI
     try {
-      const targetDate = getDateForMatchDay(day);
-      let faborMatches = [];
+      if (results[0].status !== 'fulfilled' || !results[0].value.ok) {
+        throw new Error('تعذر الاتصال بمصدر SportAPI');
+      }
 
-      // المصدر الأول: Fabor
-      try {
-        const response = await fetch(`${API_URL}?day=${day}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await results[0].value.json();
+      const fixtures = data?.data?.response;
 
-        const data = await response.json();
-        if (!data.success || !Array.isArray(data.matches)) {
-          throw new Error('بيانات Fabor غير صالحة');
-        }
+      if (!data.success || !Array.isArray(fixtures)) {
+        throw new Error('بيانات SportAPI غير صالحة');
+      }
 
+      const seenIds = new Set();
+
+      sportApiMatches = fixtures
+        .filter(item => {
+          const id = item.fixture?.id;
+          if (
+            !id ||
+            seenIds.has(id) ||
+            !item.teams?.home?.name ||
+            !item.teams?.away?.name
+          ) return false;
+
+          seenIds.add(id);
+          return true;
+        })
+        .map(item => {
+          const fixture = item.fixture;
+          const kickoffDate = new Date(fixture.date);
+          const time = Number.isNaN(kickoffDate.getTime())
+            ? '--:--'
+            : `${String(kickoffDate.getHours()).padStart(2, '0')}:${String(kickoffDate.getMinutes()).padStart(2, '0')}`;
+
+          const homeScore = item.goals?.home;
+          const awayScore = item.goals?.away;
+
+          return {
+            home: item.teams.home.name,
+            away: item.teams.away.name,
+            homeLogo: item.teams.home.logo || '',
+            awayLogo: item.teams.away.logo || '',
+            league: item.league?.name || 'بطولة أخرى',
+            leagueLogo: item.league?.logo || '',
+            time,
+            score: homeScore == null || awayScore == null
+              ? null
+              : [String(homeScore), String(awayScore)],
+            status:
+              translateFixtureStatus(fixture.status?.short) ||
+              fixture.status?.long ||
+              'موعد المباراة',
+            url: `sportapi:${fixture.id}`,
+            matchDate: targetDate,
+            isSportApiFixture: true,
+            sportApiFixtureId: fixture.id,
+            sportApiFixture: item,
+            streamUrl: null
+          };
+        });
+
+    } catch (error) {
+      console.log('SportAPI fixtures error:', error.message);
+    }
+
+    // تحميل روابط Fabor
+    try {
+      if (results[1].status !== 'fulfilled' || !results[1].value.ok) {
+        throw new Error('تعذر الاتصال بمصدر Fabor');
+      }
+
+      const data = await results[1].value.json();
+
+      if (data.success && Array.isArray(data.matches)) {
         faborMatches = data.matches.map(match => ({
           ...match,
           matchDate:
@@ -581,174 +654,91 @@ const fetchMatches = async (day = 'today') => {
               ? match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0]
               : null) || targetDate
         }));
-      } catch (faborError) {
-        console.log('Fabor fixtures error:', faborError.message);
-      }
-
-      // المصدر الاحتياطي: SportAPI
-      if (faborMatches.length === 0) {
-        try {
-          const backupResponse = await fetch(
-            `${AFCON_API_URL}fixtures?date=${targetDate}`
-          );
-          if (!backupResponse.ok) {
-            throw new Error(`HTTP ${backupResponse.status}`);
-          }
-
-          const backupData = await backupResponse.json();
-          const fixtures = backupData?.data?.response;
-
-          if (backupData.success && Array.isArray(fixtures)) {
-            const seenIds = new Set();
-
-            faborMatches = fixtures
-              .filter(item => {
-                const id = item.fixture?.id;
-                if (
-                  !id ||
-                  Number(item.league?.id) === 72 ||
-                  seenIds.has(id) ||
-                  !item.teams?.home?.name ||
-                  !item.teams?.away?.name
-                ) return false;
-
-                seenIds.add(id);
-                return true;
-              })
-              .map(item => {
-                const fixture = item.fixture;
-                const kickoffText = String(fixture.date || '').replace(' ', 'T');
-                const kickoffDate = new Date(
-                  /Z|[+-]\d{2}:?\d{2}$/.test(kickoffText)
-                    ? kickoffText
-                    : kickoffText + 'Z'
-                );
-
-                const time = Number.isNaN(kickoffDate.getTime())
-                  ? '--:--'
-                  : `${String(kickoffDate.getHours()).padStart(2, '0')}:${String(kickoffDate.getMinutes()).padStart(2, '0')}`;
-
-                const homeScore = item.goals?.home;
-                const awayScore = item.goals?.away;
-
-                return {
-                  home: item.teams.home.name,
-                  away: item.teams.away.name,
-                  homeLogo: item.teams.home.logo || '',
-                  awayLogo: item.teams.away.logo || '',
-                  league: item.league?.name || 'بطولة أخرى',
-                  leagueLogo: item.league?.logo || '',
-                  time,
-                  score: homeScore == null || awayScore == null
-                    ? null
-                    : [String(homeScore), String(awayScore)],
-                  status: translateFixtureStatus(fixture.status?.short) ||
-                    fixture.status?.long || 'موعد المباراة',
-                  url: `sportapi:${fixture.id}`,
-                  matchDate: targetDate,
-                  isSportApiFixture: true,
-                  sportApiFixtureId: fixture.id,
-                  sportApiFixture: item
-                };
-              });
-          }
-        } catch (backupError) {
-          console.log('SportAPI fallback error:', backupError.message);
-        }
-      }
-
-      // تصفيات كأس أمم إفريقيا
-      let afconMatches = [];
-
-      try {
-        const afconResponse = await fetch(
-          `${AFCON_API_URL}fixtures?date=${targetDate}`
-        );
-
-        if (afconResponse.ok) {
-          const afconData = await afconResponse.json();
-          const fixtures = afconData?.data?.response;
-
-          if (afconData.success && Array.isArray(fixtures)) {
-            const seenFixtureIds = new Set();
-
-            afconMatches = fixtures
-              .filter(item => {
-                const id = item.fixture?.id;
-                if (
-                  Number(item.league?.id) !== 72 ||
-                  !id ||
-                  seenFixtureIds.has(id)
-                ) return false;
-
-                seenFixtureIds.add(id);
-                return true;
-              })
-              .map(item => {
-                const fixture = item.fixture;
-                const kickoffText = String(fixture.date || '').replace(' ', 'T');
-                const kickoffDate = new Date(
-                  /Z|[+-]\d{2}:?\d{2}$/.test(kickoffText)
-                    ? kickoffText
-                    : kickoffText + 'Z'
-                );
-
-                const time = Number.isNaN(kickoffDate.getTime())
-                  ? '--:--'
-                  : `${String(kickoffDate.getHours()).padStart(2, '0')}:${String(kickoffDate.getMinutes()).padStart(2, '0')}`;
-
-                const homeScore = item.goals?.home;
-                const awayScore = item.goals?.away;
-
-                return {
-                  home: item.teams?.home?.name || 'الفريق الأول',
-                  away: item.teams?.away?.name || 'الفريق الثاني',
-                  homeLogo: item.teams?.home?.logo || '',
-                  awayLogo: item.teams?.away?.logo || '',
-                  league: 'تصفيات أمم إفريقيا',
-                  leagueLogo: '',
-                  time,
-                  score: homeScore == null || awayScore == null
-                    ? null
-                    : [String(homeScore), String(awayScore)],
-                  status: translateFixtureStatus(fixture.status?.short) ||
-                    fixture.status?.long || 'موعد المباراة',
-                  url: `afcon:${fixture.id}`,
-                  matchDate: targetDate,
-                  isAfconFixture: true,
-                  afconFixtureId: fixture.id,
-                  afconFixture: item
-                };
-              });
-          }
-        }
-      } catch (afconError) {
-        console.log('AFCON fixtures error:', afconError.message);
-      }
-
-      const updatedMatches = [...faborMatches, ...afconMatches];
-      setMatches(updatedMatches);
-
-      setSelectedMatch(current => {
-        if (!current) return current;
-        const latestMatch = updatedMatches.find(
-          match => match.url === current.url
-        );
-        return latestMatch ? { ...current, ...latestMatch } : current;
-      });
-
-      if (updatedMatches.length === 0) {
-        setMatchesError('لا توجد مباريات متاحة حالياً من المصادر المتصلة.');
       }
     } catch (error) {
-      setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
-    } finally {
-      matchesRequestInProgressRef.current = false;
-      setMatchesLoading(false);
+      console.log('Fabor fixtures error:', error.message);
     }
-  };
 
-  useEffect(() => {
+    // ربط البث فقط عند تطابق الفريقين والتوقيت
+    const normalizeTeam = value =>
+      String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\u0600-\u06FF]/g, '');
+
+    const getLocalMinutes = (date, time) => {
+      if (!date || !/^\d{1,2}:\d{2}$/.test(String(time || ''))) return null;
+      const parts = time.split(':').map(Number);
+      const value = new Date(`${date}T00:00:00`);
+      if (Number.isNaN(value.getTime())) return null;
+      return value.getTime() / 60000 + parts[0] * 60 + parts[1];
+    };
+
+    for (const match of sportApiMatches) {
+      const home = normalizeTeam(match.home);
+      const away = normalizeTeam(match.away);
+      const apiMinutes = getLocalMinutes(targetDate, match.time);
+
+      if (!home || !away || apiMinutes == null) continue;
+
+      const candidates = faborMatches.filter(fabor => {
+        const sameTeams =
+          home === normalizeTeam(fabor.home) &&
+          away === normalizeTeam(fabor.away);
+
+        const faborMinutes = getLocalMinutes(
+          fabor.matchDate || targetDate,
+          fabor.time
+        );
+
+        return sameTeams &&
+          faborMinutes != null &&
+          Math.abs(apiMinutes - faborMinutes) <= 15 &&
+          typeof fabor.url === 'string' &&
+          /^https?:\/\//i.test(fabor.url);
+      });
+
+      if (candidates.length === 1) {
+        match.streamUrl = candidates[0].url;
+      }
+    }
+
+    // إذا تعذر SportAPI، نعرض مباريات Fabor للمشاهدة
+    let updatedMatches = sportApiMatches;
+
+    if (updatedMatches.length === 0) {
+      updatedMatches = faborMatches.map(match => ({
+        ...match,
+        isFaborOnly: true
+      }));
+    }
+
+    setMatches(updatedMatches);
+
+    setSelectedMatch(current => {
+      if (!current) return current;
+      const latestMatch = updatedMatches.find(
+        match => match.url === current.url
+      );
+      return latestMatch ? { ...current, ...latestMatch } : current;
+    });
+
+    if (updatedMatches.length === 0) {
+      setMatchesError('لا توجد مباريات متاحة حالياً من المصادر المتصلة.');
+    }
+
+  } catch (error) {
+    console.log('Fetch matches error:', error.message);
+    setMatchesError('تعذر تحميل المباريات. تحقق من الإنترنت وحاول مجدداً.');
+  } finally {
+    matchesRequestInProgressRef.current = false;
+    setMatchesLoading(false);
+  }
+};
+
+useEffect(() => {
     if (tab !== 'المباريات') return;
 
     // جلب المباريات فور فتح الصفحة
@@ -1683,7 +1673,7 @@ const fetchMatches = async (day = 'today') => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => (match.isAfconFixture || match.isSportApiFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث رسمي لهذه المباراة حالياً.') : match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => match.streamUrl ? openMatchInsideApp(match.streamUrl) : (match.isSportApiFixture || match.isAfconFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث مطابق لهذه المباراة حالياً.') : match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
             >
               <Text style={{ color: GREEN, fontWeight: '900', fontSize: 12 }}>
@@ -3874,7 +3864,7 @@ const fetchMatches = async (day = 'today') => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => (selectedMatch.isAfconFixture || selectedMatch.isSportApiFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث رسمي لهذه المباراة حالياً.') : selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => selectedMatch.streamUrl ? openMatchInsideApp(selectedMatch.streamUrl) : (selectedMatch.isSportApiFixture || selectedMatch.isAfconFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث مطابق لهذه المباراة حالياً.') : selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
               style={{ backgroundColor: '#153D27', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 10 }}
             >
               <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة داخل التطبيق</Text>
