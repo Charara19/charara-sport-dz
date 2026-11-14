@@ -566,33 +566,32 @@ const fetchMatches = async (day = 'today') => {
     let sportApiMatches = [];
     let faborMatches = [];
 
-    // تحميل المباريات من SportAPI وFabor
+    // تحميل المباريات من API-Football وFabor
     const results = await Promise.allSettled([
-      fetch(`${AFCON_API_URL}fixtures?date=${targetDate}`),
+      fetch(`${STATS_API_URL}fixtures?date=${targetDate}`),
       fetch(`${API_URL}?day=${day}`)
     ]);
 
-    // المصدر الأساسي: SportAPI
+    // المصدر الأساسي: API-Football
     try {
       if (results[0].status !== 'fulfilled' || !results[0].value.ok) {
-        throw new Error('تعذر الاتصال بمصدر SportAPI');
+        throw new Error('تعذر الاتصال بمصدر API-Football');
       }
 
       const data = await results[0].value.json();
       const fixtures = data?.data?.response;
 
       if (!data.success || !Array.isArray(fixtures)) {
-        throw new Error('بيانات SportAPI غير صالحة');
+        throw new Error('بيانات API-Football غير صالحة');
       }
 
+      const allowedLeagueIds = new Set([2, 3, 6, 12, 17, 18, 36, 39, 61, 78, 135, 140, 186, 187, 514, 848]);
       const seenIds = new Set();
 
       sportApiMatches = fixtures
         .filter(item => {
           const id = item.fixture?.id;
-          if (
-            !id ||
-            seenIds.has(id) ||
+          if (!id || !allowedLeagueIds.has(Number(item.league?.id)) || seenIds.has(id) ||
             !item.teams?.home?.name ||
             !item.teams?.away?.name
           ) return false;
@@ -625,11 +624,11 @@ const fetchMatches = async (day = 'today') => {
               translateFixtureStatus(fixture.status?.short) ||
               fixture.status?.long ||
               'موعد المباراة',
-            url: `sportapi:${fixture.id}`,
+            url: `apifootball:${fixture.id}`,
             matchDate: targetDate,
-            isSportApiFixture: true,
-            sportApiFixtureId: fixture.id,
-            sportApiFixture: item,
+            isApiFootballFixture: true,
+            apiFootballFixtureId: fixture.id,
+            apiFootballFixture: item,
             streamUrl: null
           };
         });
@@ -705,15 +704,8 @@ const fetchMatches = async (day = 'today') => {
       }
     }
 
-    // إذا تعذر SportAPI، نعرض مباريات Fabor للمشاهدة
-    let updatedMatches = sportApiMatches;
-
-    if (updatedMatches.length === 0) {
-      updatedMatches = faborMatches.map(match => ({
-        ...match,
-        isFaborOnly: true
-      }));
-    }
+    // Fabor للروابط فقط؛ لا يعرض مباريات دون بيانات API-Football
+      const updatedMatches = sportApiMatches;
 
     setMatches(updatedMatches);
 
@@ -769,8 +761,8 @@ useEffect(() => {
     let ratingsRequestStarted = false;
 
     try {
-      const fixture = (match.isAfconFixture || match.isSportApiFixture)
-        ? (match.afconFixture || match.sportApiFixture)
+      const fixture = (match.isApiFootballFixture || match.isAfconFixture || match.isSportApiFixture)
+        ? (match.apiFootballFixture || match.afconFixture || match.sportApiFixture)
         : await findMatchingFixture(match.home, match.away, date, match.time);
 
       if (!fixture?.fixture?.id) {
@@ -780,7 +772,7 @@ useEffect(() => {
         return;
       }
 
-      currentFixtureApiRef.current = (match.isAfconFixture || match.isSportApiFixture) ? AFCON_API_URL : STATS_API_URL;
+      currentFixtureApiRef.current = match.isApiFootballFixture ? STATS_API_URL : (match.isAfconFixture || match.isSportApiFixture) ? AFCON_API_URL : STATS_API_URL;
       currentFixtureIdRef.current = fixture.fixture.id;
       currentFixtureTeamsRef.current = {
         homeId: fixture.teams?.home?.id,
