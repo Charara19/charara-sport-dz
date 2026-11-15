@@ -1727,6 +1727,28 @@ useEffect(() => {
               role: item.role,
               content: item.text,
             })),
+            footballContext: {
+              date: matches[0]?.matchDate || new Date().toISOString().slice(0, 10),
+              matches: matches.slice(0, 40).map(match => ({
+                home: match.home || '',
+                away: match.away || '',
+                league: match.league || '',
+                date: match.matchDate || '',
+                time: match.time || '',
+                score: match.score || null,
+                status: match.status || '',
+                isApiFootballFixture: !!match.isApiFootballFixture,
+              })),
+              selectedMatch: selectedMatch ? {
+                home: selectedMatch.home || '',
+                away: selectedMatch.away || '',
+                league: selectedMatch.league || '',
+                date: selectedMatch.matchDate || '',
+                time: selectedMatch.time || '',
+                score: selectedMatch.score || null,
+                status: fixtureStatus || selectedMatch.status || '',
+              } : null,
+            },
           }),
         }
       );
