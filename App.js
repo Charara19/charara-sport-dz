@@ -951,6 +951,8 @@ useEffect(() => {
       return;
     }
 
+    let statsUpdateCounter = 0;
+
     const timer = setInterval(async () => {
       if (liveUpdateInProgressRef.current) return;
       const fixtureId = currentFixtureIdRef.current;
@@ -1013,21 +1015,23 @@ useEffect(() => {
         previousEventsRef.current[id] = new Set(incomingEvents.map(eventKey));
         setMatchEvents(incomingEvents);
 
-        const statsResponse = await fetch(
-          `${currentFixtureApiRef.current || STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
-        );
+        if (++statsUpdateCounter % 3 === 0) {
+          const statsResponse = await fetch(
+            `${currentFixtureApiRef.current || STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
+          );
 
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          const statistics = statsData.data?.response || [];
-          const homeId = currentFixtureTeamsRef.current.homeId;
-          const awayId = currentFixtureTeamsRef.current.awayId;
-          const homeStats = statistics.find(team => String(team.team?.id) === String(homeId));
-          const awayStats = statistics.find(team => String(team.team?.id) === String(awayId));
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json();
+            const statistics = statsData.data?.response || [];
+            const homeId = currentFixtureTeamsRef.current.homeId;
+            const awayId = currentFixtureTeamsRef.current.awayId;
+            const homeStats = statistics.find(team => String(team.team?.id) === String(homeId));
+            const awayStats = statistics.find(team => String(team.team?.id) === String(awayId));
 
-          if (homeStats && awayStats) {
-            setMatchStats([homeStats, awayStats]);
-            setStatsError('');
+            if (homeStats && awayStats) {
+              setMatchStats([homeStats, awayStats]);
+              setStatsError('');
+            }
           }
         }
       } catch (error) {
