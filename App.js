@@ -588,7 +588,13 @@ const fetchMatches = async (day = 'today') => {
 
       apiFootballLoaded = true;
 
-      const allowedLeagueIds = new Set([1, 2, 3, 6, 12, 17, 18, 36, 39, 61, 78, 135, 140, 186, 187, 514, 848]);
+      const allowedLeagueIds = new Set([
+        1, 2, 3, 5, 6, 12, 17, 18, 36, 39, 61, 78,
+        89, 95, 99, 100, 101, 135, 140, 141,
+        186, 187, 201, 236, 324, 334, 336,
+        399, 411, 403, 435, 436, 514, 570,
+        66, 828, 887, 848
+      ]);
       const seenIds = new Set();
 
       sportApiMatches = fixtures
