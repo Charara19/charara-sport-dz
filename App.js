@@ -146,6 +146,9 @@ const officialSportsChannels = [
 
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
+  const [shararaAIMessage, setShararaAIMessage] = useState('');
+  const [shararaAIMessages, setShararaAIMessages] = useState([]);
+  const [shararaAILoading, setShararaAILoading] = useState(false);
   const [language, setLanguage] = useState("ar");
   const languageLoadedRef = useRef(false);
 
@@ -336,6 +339,7 @@ export default function App() {
   const tabs = [
     'الرئيسية',
     'المباريات',
+    'شرارة AI',
     'المفضلة',
     'البث المباشر',
     'البطولات',
@@ -1697,6 +1701,156 @@ useEffect(() => {
         بيانات المباريات من Fabor TV. يفتح زر التفاصيل صفحة المباراة على موقع المصدر.
       </Text>
     </>
+  );
+
+  const sendShararaAIMessage = async () => {
+    const question = shararaAIMessage.trim();
+    if (!question || shararaAILoading) return;
+
+    const conversation = [
+      ...shararaAIMessages,
+      { role: 'user', text: question },
+    ];
+
+    setShararaAIMessages(conversation);
+    setShararaAIMessage('');
+    setShararaAILoading(true);
+
+    try {
+      const response = await fetch(
+        'https://sharara-ai-brain.hasnnoui73.workers.dev',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: conversation.map(item => ({
+              role: item.role,
+              content: item.text,
+            })),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.reply) {
+        throw new Error(data.error || 'تعذر الحصول على رد من شرارة AI.');
+      }
+
+      setShararaAIMessages(prev => [
+        ...prev,
+        { role: 'assistant', text: data.reply },
+      ]);
+    } catch (error) {
+      setShararaAIMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          text: 'عذراً، تعذر الاتصال بشرارة AI حالياً. تحقق من الإنترنت وحاول مجدداً.',
+        },
+      ]);
+      console.log('Sharara AI error:', error?.message || error);
+    } finally {
+      setShararaAILoading(false);
+    }
+  };
+
+  const ShararaAIPage = () => (
+    <View style={{ flex: 1, minHeight: 540 }}>
+      <View style={{
+        backgroundColor: '#10251A',
+        borderRadius: 20,
+        padding: 18,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#267A46',
+      }}>
+        <Text style={{ color: GREEN, fontSize: 23, fontWeight: '900', textAlign: 'center' }}>
+          ⚡ شرارة AI
+        </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+          مساعدك الرياضي الذكي
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 5 }}>
+          اسأل عن المباريات والنتائج والبطولات والإحصائيات
+        </Text>
+      </View>
+
+      <ScrollView
+        style={{ flex: 1, backgroundColor: '#0D1510', borderRadius: 16, padding: 12 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {shararaAIMessages.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 45 }}>
+            <Text style={{ fontSize: 42 }}>⚽</Text>
+            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 16, marginTop: 12 }}>
+              مرحباً بك في شرارة AI
+            </Text>
+            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 8 }}>
+              اسأل شرارة AI وسيجيبك عن عالم كرة القدم.
+            </Text>
+            <Text style={{ color: '#D6A84B', textAlign: 'center', fontSize: 10, marginTop: 12 }}>
+              مساعدك الرياضي جاهز للمحادثة.
+            </Text>
+          </View>
+        ) : (
+          shararaAIMessages.map((item, index) => (
+            <View
+              key={index}
+              style={{
+                alignSelf: item.role === 'user' ? 'flex-start' : 'flex-end',
+                backgroundColor: item.role === 'user' ? '#153D27' : '#202B24',
+                borderRadius: 14,
+                padding: 12,
+                marginVertical: 5,
+                maxWidth: '88%',
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 21 }}>
+                {item.text}
+              </Text>
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 }}>
+        <TextInput
+          value={shararaAIMessage}
+          onChangeText={setShararaAIMessage}
+          placeholder="اكتب سؤالك الرياضي..."
+          placeholderTextColor={MUTED}
+          editable={!shararaAILoading}
+          multiline
+          style={{
+            flex: 1,
+            backgroundColor: '#17231B',
+            color: '#FFFFFF',
+            borderRadius: 13,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            minHeight: 48,
+            maxHeight: 100,
+            textAlign: 'right',
+            borderWidth: 1,
+            borderColor: '#31533B',
+          }}
+        />
+        <TouchableOpacity
+          disabled={!shararaAIMessage.trim() || shararaAILoading}
+          onPress={sendShararaAIMessage}
+          style={{
+            backgroundColor: shararaAIMessage.trim() ? GREEN : '#35443A',
+            borderRadius: 13,
+            paddingHorizontal: 17,
+            paddingVertical: 15,
+          }}
+        >
+          <Text style={{ color: '#07110A', fontWeight: '900' }}>{shararaAILoading ? '...' : 'إرسال'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   const Home = () => (
@@ -3918,6 +4072,8 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           <MatchesPage />
         ) : tab === 'المفضلة' ? (
           <FavoritesPage />
+        ) : tab === 'شرارة AI' ? (
+          <ShararaAIPage />
         ) : (
           <OtherPage />
         )}
@@ -4129,11 +4285,12 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
       <View style={styles.bottomNav}>
         {tabs.map((item, index) => {
-          const icons = ['⌂', '⚽', '★', '📺', '🏆', '♙'];
+          const icons = ['⌂', '⚽', '⚡', '★', '📺', '🏆', '♙'];
           const active = tab === item;
           const labels = [
             'الرئيسية',
             'المباريات',
+            'شرارة AI',
             'المفضلة',
             'البث',
             'البطولات',
@@ -4661,7 +4818,7 @@ const styles = StyleSheet.create({
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 55,
+    minWidth: 0,
     flex: 1,
   },
   navIcon: {
@@ -4669,7 +4826,7 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   navText: {
-    fontSize: 9,
+    fontSize: 8,
     color: MUTED,
     marginTop: 3,
   },
