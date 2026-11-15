@@ -565,6 +565,7 @@ const fetchMatches = async (day = 'today') => {
     const targetDate = getDateForMatchDay(day);
     let sportApiMatches = [];
     let faborMatches = [];
+    let apiFootballLoaded = false;
 
     // تحميل المباريات من API-Football وFabor
     const results = await Promise.allSettled([
@@ -585,7 +586,9 @@ const fetchMatches = async (day = 'today') => {
         throw new Error('بيانات API-Football غير صالحة');
       }
 
-      const allowedLeagueIds = new Set([2, 3, 6, 12, 17, 18, 36, 39, 61, 78, 135, 140, 186, 187, 514, 848]);
+      apiFootballLoaded = true;
+
+      const allowedLeagueIds = new Set([1, 2, 3, 6, 12, 17, 18, 36, 39, 61, 78, 135, 140, 186, 187, 514, 848]);
       const seenIds = new Set();
 
       sportApiMatches = fixtures
@@ -707,18 +710,22 @@ const fetchMatches = async (day = 'today') => {
     // Fabor للروابط فقط؛ لا يعرض مباريات دون بيانات API-Football
       const updatedMatches = sportApiMatches;
 
-    setMatches(updatedMatches);
+    if (apiFootballLoaded) {
+      setMatches(updatedMatches);
 
-    setSelectedMatch(current => {
-      if (!current) return current;
-      const latestMatch = updatedMatches.find(
-        match => match.url === current.url
-      );
-      return latestMatch ? { ...current, ...latestMatch } : current;
-    });
+      setSelectedMatch(current => {
+        if (!current) return current;
+        const latestMatch = updatedMatches.find(
+          match => match.url === current.url
+        );
+        return latestMatch ? { ...current, ...latestMatch } : current;
+      });
 
-    if (updatedMatches.length === 0) {
-      setMatchesError('لا توجد مباريات متاحة حالياً من المصادر المتصلة.');
+      if (updatedMatches.length === 0) {
+        setMatchesError('لا توجد مباريات متاحة حالياً من المصادر المتصلة.');
+      }
+    } else {
+      setMatchesError('تعذر تحديث المباريات؛ نحتفظ بآخر بيانات متاحة.');
     }
 
   } catch (error) {
