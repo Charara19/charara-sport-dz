@@ -2792,25 +2792,18 @@ useEffect(() => {
                           activeOpacity={0.7}
                           style={{ flex: 1 }}
                         >
-                          <Text numberOfLines={1} style={{
-                            color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF',
-                            textAlign: 'right',
-                            fontSize: 12,
-                            fontWeight: 'bold',
-                          }}>
                             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
-                        {row.team?.logo ? (
-                          <Image
-                            source={{ uri: row.team.logo }}
-                            style={{ width: 24, height: 24, marginLeft: 8 }}
-                            resizeMode="contain"
-                          />
-                        ) : null}
-                        <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
-                          {row.team?.short_name || row.team?.name || '—'}
-                        </Text>
-                      </View>
-                          </Text>
+                              {row.team?.logo ? (
+                                <Image
+                                  source={{ uri: row.team.logo }}
+                                  style={{ width: 24, height: 24, marginLeft: 8 }}
+                                  resizeMode="contain"
+                                />
+                              ) : null}
+                              <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                                {row.team?.short_name || row.team?.name || '—'}
+                              </Text>
+                            </View>
                         </TouchableOpacity>
                         <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
                           {row.played ?? 0}
