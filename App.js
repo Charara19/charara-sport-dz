@@ -2520,27 +2520,45 @@ useEffect(() => {
 
 
     useEffect(() => {
-      if (selectedLeague !== 'تصفيات أمم إفريقيا' && selectedLeague !== 'كأس أمم إفريقيا') return;
-      const afconLeagueId = selectedLeague === 'كأس أمم إفريقيا' ? '123' : '72';
+      const leagueId = leagueIds[selectedLeague];
+      if (!leagueId) return;
 
-      const refreshAfconStandings = async () => {
+      let active = true;
+
+      const refreshStandings = async () => {
         try {
           const response = await fetch(
-            `https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${afconLeagueId}`
+            AFCON_API_URL + 'standings/' + leagueId
           );
           const payload = await response.json();
 
-          if (response.ok && payload.success && Array.isArray(payload.data)) {
-            setStandings(payload.data);
+          if (active && response.ok && payload.success && Array.isArray(payload.data)) {
+            setStandings(current => payload.data.map(row => {
+              const previous = current.find(item =>
+                String(item.team?.id) === String(row.team?.id)
+              );
+
+              return {
+                ...row,
+                team: {
+                  ...row.team,
+                  logo: row.team?.logo || previous?.team?.logo || '',
+                },
+              };
+            }));
             setStandingsError('');
           }
         } catch (error) {
-          console.log('AFCON standings refresh error:', error.message);
+          console.log('Standings refresh error:', error.message);
         }
       };
 
-      const interval = setInterval(refreshAfconStandings, 5 * 60 * 1000);
-      return () => clearInterval(interval);
+      const interval = setInterval(refreshStandings, 5 * 60 * 1000);
+
+      return () => {
+        active = false;
+        clearInterval(interval);
+      };
     }, [selectedLeague]);
 
     useEffect(() => {
