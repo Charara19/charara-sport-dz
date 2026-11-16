@@ -3528,21 +3528,21 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                                   position: 'absolute',
                                   left: `${left}%`,
                                   top: `${top}%`,
-                                  width: 58,
-                                  marginLeft: -29,
+                                  width: 68,
+                                  marginLeft: -34,
                                   marginTop: -15,
                                   alignItems: 'center',
                                   zIndex: 2,
                                 }}
                               >
                                 {playerPhoto ? (
-                                  <View style={{ width: 34, height: 34, position: 'relative' }}>
+                                  <View style={{ width: 36, height: 36, position: 'relative' }}>
                                     <Image
                                       source={{ uri: playerPhoto }}
                                       style={{
-                                        width: 34,
-                                        height: 34,
-                                        borderRadius: 17,
+                                        width: 36,
+                                        height: 36,
+                                        borderRadius: 18,
                                         borderWidth: 2,
                                         borderColor: '#D8F5DF',
                                         backgroundColor: '#FFFFFF',
@@ -3583,7 +3583,7 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                                   </View>
                                 )}
                                 <Text
-                                  numberOfLines={1}
+                                  numberOfLines={2}
                                   style={{
                                     color: '#FFFFFF',
                                     fontSize: 9,
@@ -3591,12 +3591,32 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                                     backgroundColor: '#084D2B',
                                     paddingHorizontal: 3,
                                     borderRadius: 4,
-                                    maxWidth: 58,
+                                    maxWidth: 68,
+                                    lineHeight: 11,
                                     textAlign: 'center',
                                   }}
                                 >
                                   {entry.player.name || 'لاعب'}
                                 </Text>
+                                {ratingPlayer && Number.isFinite(ratingPlayer.playerRating) ? (
+                                  <View style={{
+                                    marginTop: 2,
+                                    paddingHorizontal: 5,
+                                    paddingVertical: 1,
+                                    borderRadius: 5,
+                                    backgroundColor: ratingPlayer.playerRating >= 8 ? '#3D3108' : ratingPlayer.playerRating >= 7 ? '#0B3D25' : '#263238',
+                                    borderWidth: 1,
+                                    borderColor: ratingPlayer.playerRating >= 8 ? '#FFD700' : ratingPlayer.playerRating >= 7 ? '#00E676' : '#9EADB5',
+                                  }}>
+                                    <Text style={{
+                                      color: ratingPlayer.playerRating >= 8 ? '#FFD700' : ratingPlayer.playerRating >= 7 ? '#00E676' : '#CFD8DC',
+                                      fontSize: 9,
+                                      fontWeight: '900',
+                                    }}>
+                                      ★ {ratingPlayer.playerRating.toFixed(1)}
+                                    </Text>
+                                  </View>
+                                ) : null}
                               </TouchableOpacity>
                             );
                           })}
@@ -4137,7 +4157,13 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                     تقييم اللاعب
                   </Text>
                   <Text style={{
-                    color: '#FFFFFF',
+                    color: selectedPlayer?.rating == null
+                      ? '#FFFFFF'
+                      : Number(selectedPlayer.rating) >= 8
+                        ? '#FFD700'
+                        : Number(selectedPlayer.rating) >= 7
+                          ? '#00E676'
+                          : '#CFD8DC',
                     fontSize: 27,
                     fontWeight: '900',
                     textAlign: 'center',
@@ -4146,6 +4172,73 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                       ? Number(selectedPlayer.rating).toFixed(1) + ' / 10'
                       : '-- / 10'}
                   </Text>
+                </View>
+              </View>
+
+              <View style={{
+                backgroundColor: '#111A15',
+                borderRadius: 12,
+                padding: 12,
+                marginTop: 10,
+                marginBottom: 14,
+                borderWidth: 1,
+                borderColor: '#286B48',
+              }}>
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 9,
+                }}>
+                  <Text style={{ color: '#B7D9C5', fontSize: 12 }}>
+                    مستوى أداء اللاعب
+                  </Text>
+                  <Text style={{
+                    color: selectedPlayer?.rating == null
+                      ? '#CFD8DC'
+                      : Number(selectedPlayer.rating) >= 8
+                        ? '#FFD700'
+                        : Number(selectedPlayer.rating) >= 7
+                          ? '#00E676'
+                          : Number(selectedPlayer.rating) >= 6
+                            ? '#FFB74D'
+                            : '#CFD8DC',
+                    fontSize: 12,
+                    fontWeight: '900',
+                  }}>
+                    {selectedPlayer?.rating == null
+                      ? 'لا يتوفر تقييم'
+                      : Number(selectedPlayer.rating) >= 8
+                        ? 'ممتاز'
+                        : Number(selectedPlayer.rating) >= 7
+                          ? 'جيد جداً'
+                          : Number(selectedPlayer.rating) >= 6
+                            ? 'متوسط'
+                            : 'يحتاج إلى تحسين'}
+                  </Text>
+                </View>
+                <View style={{
+                  height: 9,
+                  backgroundColor: '#26352D',
+                  borderRadius: 10,
+                  overflow: 'hidden',
+                }}>
+                  <View style={{
+                    height: '100%',
+                    width: selectedPlayer?.rating != null
+                      ? Math.max(0, Math.min(100, Number(selectedPlayer.rating) * 10)) + '%'
+                      : '0%',
+                    backgroundColor: selectedPlayer?.rating == null
+                      ? '#789889'
+                      : Number(selectedPlayer.rating) >= 8
+                        ? '#FFD700'
+                        : Number(selectedPlayer.rating) >= 7
+                          ? '#00E676'
+                          : Number(selectedPlayer.rating) >= 6
+                            ? '#FFB74D'
+                            : '#CFD8DC',
+                    borderRadius: 10,
+                  }} />
                 </View>
               </View>
 
@@ -4199,15 +4292,264 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                       {item[0]}
                     </Text>
                     <Text style={{
-                      color: '#FFFFFF',
+                      color: index === 0
+                        ? '#FFD700'
+                        : index === 1
+                          ? '#00E676'
+                          : index === 2
+                            ? '#64D8FF'
+                            : '#FFFFFF',
                       fontSize: 19,
                       fontWeight: '900',
                       textAlign: 'center',
                     }}>
                       {item[1] != null ? String(item[1]) : '--'}
                     </Text>
+                    {index === 5 && selectedPlayer?.stats?.passAccuracy != null ? (
+                      <View style={{
+                        height: 6,
+                        backgroundColor: '#34483D',
+                        borderRadius: 5,
+                        marginTop: 9,
+                        overflow: 'hidden',
+                      }}>
+                        <View style={{
+                          height: 6,
+                          width: Math.max(0, Math.min(100, Number(selectedPlayer.stats.passAccuracy) || 0)) + '%',
+                          backgroundColor: '#00E676',
+                          borderRadius: 5,
+                        }} />
+                      </View>
+                    ) : null}
+                    {index === 9 && selectedPlayer?.minutesPlayed != null ? (
+                      <View style={{
+                        height: 6,
+                        backgroundColor: '#34483D',
+                        borderRadius: 5,
+                        marginTop: 9,
+                        overflow: 'hidden',
+                      }}>
+                        <View style={{
+                          height: 6,
+                          width: Math.max(0, Math.min(100, Number(selectedPlayer.minutesPlayed) / 90 * 100)) + '%',
+                          backgroundColor: '#64D8FF',
+                          borderRadius: 5,
+                        }} />
+                      </View>
+                    ) : null}
                   </View>
                 ))}
+              </View>
+
+              <View style={{
+                backgroundColor: '#111A15',
+                borderRadius: 13,
+                padding: 12,
+                marginTop: 12,
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: '#31523D',
+              }}>
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 15,
+                  fontWeight: '900',
+                  textAlign: 'right',
+                  marginBottom: 12,
+                }}>⏱️ أحداث اللاعب حسب الشوط</Text>
+
+                {[
+                  { label: 'الشوط الأول', min: 1, max: 45, color: '#00E676' },
+                  { label: 'الشوط الثاني', min: 46, max: 90, color: '#64D8FF' },
+                ].map((period, periodIndex) => {
+                  const playerId = String(selectedPlayer?.id ?? '');
+
+                  const playerEvents = matchEvents.filter(event => {
+                    const minute = Number(event.time?.elapsed);
+                    const involved =
+                      playerId !== '' &&
+                      (
+                        String(event.player?.id ?? '') === playerId ||
+                        String(event.assist?.id ?? '') === playerId
+                      );
+
+                    return involved &&
+                      Number.isFinite(minute) &&
+                      minute >= period.min &&
+                      minute <= period.max;
+                  });
+
+                  return (
+                    <View key={period.label} style={{
+                      backgroundColor: '#1A2B23',
+                      borderRadius: 10,
+                      padding: 10,
+                      marginBottom: periodIndex === 0 ? 10 : 0,
+                    }}>
+                      <Text style={{
+                        color: period.color,
+                        fontSize: 13,
+                        fontWeight: '900',
+                        textAlign: 'right',
+                        marginBottom: 8,
+                      }}>{period.label}</Text>
+
+                      {playerEvents.length > 0 ? playerEvents.map((event, index) => {
+                        const type = String(event.type || '');
+                        const detail = String(event.detail || '');
+                        const eventPlayerId = String(event.player?.id ?? '');
+                        const assistId = String(event.assist?.id ?? '');
+
+                        let eventIcon = '•';
+                        let eventLabel = detail || type || 'حدث';
+
+                        if (/goal/i.test(type)) {
+                          if (assistId === playerId && eventPlayerId !== playerId) {
+                            eventIcon = '🅰️';
+                            eventLabel = 'صناعة هدف';
+                          } else {
+                            eventIcon = '⚽';
+                            eventLabel = /own goal/i.test(detail)
+                              ? 'هدف عكسي'
+                              : /penalty/i.test(detail)
+                                ? 'هدف من ركلة جزاء'
+                                : 'تسجيل هدف';
+                          }
+                        } else if (/card/i.test(type)) {
+                          eventIcon = /red/i.test(detail) ? '🟥' : '🟨';
+                          eventLabel = /red/i.test(detail)
+                            ? 'بطاقة حمراء'
+                            : 'بطاقة صفراء';
+                        } else if (/subst/i.test(type)) {
+                          if (assistId === playerId) {
+                            eventIcon = '🟢';
+                            eventLabel = 'دخول إلى الملعب';
+                          } else {
+                            eventIcon = '🔄';
+                            eventLabel = 'خروج من الملعب';
+                          }
+                        }
+
+                        return (
+                          <View key={index} style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingVertical: 9,
+                            borderBottomWidth: index === playerEvents.length - 1 ? 0 : 1,
+                            borderBottomColor: '#34483D',
+                          }}>
+                            <View style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              flex: 1,
+                            }}>
+                              <Text style={{ fontSize: 17, marginLeft: 8 }}>
+                                {eventIcon}
+                              </Text>
+                              <Text style={{
+                                color: '#FFFFFF',
+                                fontSize: 12,
+                                fontWeight: '700',
+                                flex: 1,
+                                textAlign: 'right',
+                              }}>{eventLabel}</Text>
+                            </View>
+                            <Text style={{
+                              color: period.color,
+                              fontSize: 12,
+                              fontWeight: '900',
+                              marginLeft: 10,
+                            }}>
+                              {event.time?.elapsed ?? '--'}'{event.time?.extra ? '+' + event.time.extra : ''}
+                            </Text>
+                          </View>
+                        );
+                      }) : (
+                        <Text style={{
+                          color: '#91A398',
+                          fontSize: 11,
+                          textAlign: 'center',
+                          paddingVertical: 5,
+                        }}>لا توجد أحداث مسجلة لهذا اللاعب في هذا الشوط</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginTop: 8,
+                marginBottom: 10,
+              }}>
+                <View style={{
+                  width: '48%',
+                  backgroundColor: '#173D2B',
+                  borderRadius: 13,
+                  padding: 11,
+                  borderWidth: 1,
+                  borderColor: '#286B48',
+                }}>
+                  <Text style={{
+                    color: '#00E676',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                    marginBottom: 10,
+                  }}>⚽ المساهمة الهجومية</Text>
+                  {[
+                    ['الأهداف', selectedPlayer?.stats?.goals],
+                    ['التمريرات الحاسمة', selectedPlayer?.stats?.assists],
+                    ['التسديدات', selectedPlayer?.stats?.shots],
+                    ['على المرمى', selectedPlayer?.stats?.shotsOnTarget],
+                  ].map((item, index) => (
+                    <View key={index} style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 7,
+                    }}>
+                      <Text style={{ color: '#B7D9C5', fontSize: 11 }}>{item[0]}</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '900' }}>
+                        {item[1] != null ? String(item[1]) : '--'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={{
+                  width: '48%',
+                  backgroundColor: '#172B35',
+                  borderRadius: 13,
+                  padding: 11,
+                  borderWidth: 1,
+                  borderColor: '#31596B',
+                }}>
+                  <Text style={{
+                    color: '#64D8FF',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                    marginBottom: 10,
+                  }}>🛡️ الأداء الدفاعي</Text>
+                  {[
+                    ['التدخلات', selectedPlayer?.stats?.tackles],
+                    ['بطاقات صفراء', selectedPlayer?.stats?.yellowCards],
+                    ['بطاقات حمراء', selectedPlayer?.stats?.redCards],
+                  ].map((item, index) => (
+                    <View key={index} style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginBottom: 9,
+                    }}>
+                      <Text style={{ color: '#B7D9E5', fontSize: 11 }}>{item[0]}</Text>
+                      <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '900' }}>
+                        {item[1] != null ? String(item[1]) : '--'}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
 
               <Text style={{
