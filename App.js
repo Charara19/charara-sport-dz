@@ -241,6 +241,11 @@ export default function App() {
   const [selectedLeagueFilter, setSelectedLeagueFilter] = useState('الكل');
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [openedMatchSections, setOpenedMatchSections] = useState({});
+
+  useEffect(() => {
+    setOpenedMatchSections({});
+  }, [selectedMatch?.url]);
   const [matchStats, setMatchStats] = useState([]);
   const [matchEvents, setMatchEvents] = useState([]);
   const [matchLineups, setMatchLineups] = useState([]);
@@ -1876,268 +1881,82 @@ useEffect(() => {
   );
 
   const Home = () => (
-    <>
-      <ImageBackground
-        source={{ uri: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1400&q=85' }}
-        imageStyle={{ borderRadius: 26, opacity: 0.62 }}
-        style={{
-          backgroundColor: '#10251A',
-          borderRadius: 26,
-          overflow: 'hidden',
-          marginBottom: 27,
-          borderWidth: 1,
-          borderColor: '#267A46',
-          minHeight: 260,
-        }}
-      >
-        <View style={{
-          backgroundColor: 'rgba(4,12,7,0.62)',
-          padding: 24,
-          minHeight: 260,
-          justifyContent: 'center',
-        }}>
-          <Text style={styles.heroSmall}>⚽ شرارة سبورت DZ • عالم كرة القدم</Text>
-          <Text style={styles.heroTitle}>عِش شغف</Text>
-          <Text style={[styles.heroTitle, { color: GREEN }]}>كرة القدم</Text>
-          <Text style={styles.heroDesc}>
-            النتائج والمباريات والبطولات العالمية في مكان واحد
-          </Text>
-          <TouchableOpacity
-            style={styles.heroButton}
-            onPress={() => setTab('المباريات')}
-          >
-            <Text style={styles.heroButtonText}>اكتشف المباريات ←</Text>
-          </TouchableOpacity>
-        </View>
-      </ImageBackground>
-
-      <View style={{ marginBottom: 25 }}>
-        <Text style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 'bold', textAlign: 'right', marginBottom: 15 }}>
-          الوصول السريع
+    <View style={{ paddingBottom: 24 }}>
+      <View style={{
+        backgroundColor: '#10251A',
+        borderRadius: 24,
+        padding: 24,
+        marginBottom: 22,
+        borderWidth: 1,
+        borderColor: '#267A46',
+        alignItems: 'center',
+      }}>
+        <Text style={{ fontSize: 38, marginBottom: 10 }}>⚽</Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '900', textAlign: 'center' }}>
+          شرارة سبورت DZ
         </Text>
-        <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          {[
-            { icon: '⚽', label: 'المباريات', tab: 'المباريات' },
-            { icon: '📺', label: 'البث المباشر', tab: 'البث المباشر' },
-            { icon: '🏆', label: 'البطولات', tab: 'البطولات' },
-            { icon: '⭐', label: 'المفضلة', tab: 'المفضلة' },
-          ].map(item => (
-            <TouchableOpacity
-              key={item.tab}
-              onPress={() => setTab(item.tab)}
-              style={{ flex: 1, alignItems: 'center' }}
-              activeOpacity={0.75}
-            >
-              <View style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: '#123522',
-                borderWidth: 1.5,
-                borderColor: GREEN,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 8,
-              }}>
-                <Text style={{ fontSize: 25 }}>{item.icon}</Text>
-              </View>
-              <Text style={{
-                color: '#EAF5ED',
-                fontSize: 10,
-                fontWeight: '600',
-                textAlign: 'center',
-              }}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={{ color: '#A7C5B4', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
+          عالم كرة القدم بين يديك
+        </Text>
+        <Text style={{ color: GREEN, fontSize: 12, marginTop: 12, textAlign: 'center' }}>
+          اختر غرفتك لعرض محتواها
+        </Text>
       </View>
 
-      <SectionTitle title="المباريات" action="عرض الكل" />
+      <Text style={{
+        color: '#FFFFFF',
+        fontSize: 19,
+        fontWeight: '900',
+        textAlign: 'right',
+        marginBottom: 14,
+      }}>
+        غرف التطبيق
+      </Text>
 
-      <View style={styles.categories}>
-        {categories.map(item => (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        {[
+          { icon: '⚽', title: 'غرفة المباريات', desc: 'المواعيد والنتائج', tab: 'المباريات' },
+          { icon: '🏆', title: 'غرفة البطولات', desc: 'البطولات والترتيب', tab: 'البطولات' },
+          { icon: '⭐', title: 'غرفة المفضلة', desc: 'فرقك المفضلة', tab: 'المفضلة' },
+          { icon: '📺', title: 'غرفة البث الرسمي', desc: 'منصات المشاهدة المرخصة', tab: 'البث المباشر' },
+          { icon: '⚡', title: 'غرفة شرارة AI', desc: 'المساعد الذكي', tab: 'شرارة AI' },
+          { icon: '♙', title: 'غرفة حسابي', desc: 'إعدادات وحساب المستخدم', tab: 'حسابي' },
+        ].map((item) => (
           <TouchableOpacity
-            key={item}
-            onPress={() => setCategory(item)}
-            style={[
-              styles.category,
-              category === item && styles.categoryActive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.categoryText,
-                category === item && { color: BG },
-              ]}
-            >
-              {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {matchesLoading ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>⚽</Text>
-          <Text style={styles.emptyTitle}>جارٍ تحميل المباريات...</Text>
-        </View>
-      ) : matchesError ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>⚠️</Text>
-          <Text style={styles.emptyDesc}>{matchesError}</Text>
-          <TouchableOpacity
-            style={styles.heroButton}
-            onPress={() => fetchMatches(matchDay)}
-          >
-            <Text style={styles.heroButtonText}>إعادة المحاولة</Text>
-          </TouchableOpacity>
-        </View>
-      ) : matches.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyIcon}>⚽</Text>
-          <Text style={styles.emptyTitle}>لا توجد مباريات متاحة حالياً</Text>
-        </View>
-      ) : (
-        matches.slice(0, 3).map((match, index) => (
-          <TouchableOpacity
-            key={`${match.url}-home-${index}`}
-            activeOpacity={0.85}
-            onPress={() => setTab('المباريات')}
+            key={item.tab}
+            activeOpacity={0.8}
+            onPress={() => setTab(item.tab)}
             style={{
-              backgroundColor: '#101812',
-              borderRadius: 18,
-              padding: 15,
-              marginBottom: 11,
+              width: '48%',
+              minHeight: 142,
+              backgroundColor: '#111A15',
+              borderRadius: 19,
               borderWidth: 1,
-              borderColor: '#245235',
+              borderColor: '#245B42',
+              padding: 15,
+              marginBottom: 13,
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Text style={{
-              color: GREEN,
-              textAlign: 'center',
-              fontSize: 11,
-              fontWeight: '800',
-              marginBottom: 13,
-            }}>
-              {match.status || 'موعد المباراة'} • {match.time || '--:--'}
+            <Text style={{ fontSize: 31, marginBottom: 9 }}>{item.icon}</Text>
+            <Text style={{ color: GREEN, fontSize: 14, fontWeight: '900', textAlign: 'center' }}>
+              {item.title}
             </Text>
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
-                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
-                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.home)} style={{ padding: 5 }}>
-                  <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{
-                backgroundColor: '#07100A',
-                paddingHorizontal: 13,
-                paddingVertical: 9,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: '#245235',
-              }}>
-                <Text style={{
-                  color: GREEN,
-                  fontSize: 16,
-                  fontWeight: '900',
-                  writingDirection: 'ltr',
-                }}>
-                  {Array.isArray(match.score) && match.score.length >= 2
-                    ? `${match.score[0]} - ${match.score[1]}`
-                    : 'VS'}
-                </Text>
-              </View>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
-                <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
-                <TouchableOpacity onPress={() => toggleFavoriteTeam(match.away)} style={{ padding: 5 }}>
-                  <Text style={{ color: favoriteTeams.includes(match.away) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text style={{
-              color: MUTED,
-              textAlign: 'center',
-              fontSize: 10,
-              marginTop: 12,
-            }}>اضغط لعرض تفاصيل المباراة ←</Text>
-          </TouchableOpacity>
-        ))
-      )}
-      <TouchableOpacity
-        onPress={() => setTab('المباريات')}
-        style={{
-          backgroundColor: '#153D27',
-          borderRadius: 13,
-          padding: 13,
-          alignItems: 'center',
-          marginBottom: 25,
-        }}
-      >
-        <Text style={{ color: GREEN, fontWeight: '900' }}>
-          عرض جميع المباريات ←
-        </Text>
-      </TouchableOpacity>
-
-      <SectionTitle title="البث المباشر" action="شاهد المنصات" />
-
-      <TouchableOpacity
-        style={styles.broadcastBanner}
-        onPress={() => setTab('البث المباشر')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.broadcastBannerIcon}>📺</Text>
-        <View style={styles.broadcastBannerInfo}>
-          <Text style={styles.broadcastBannerTitle}>
-            منصات البث الرسمية
-          </Text>
-          <Text style={styles.broadcastBannerDesc}>
-            اكتشف طرق مشاهدة المباريات المرخصة
-          </Text>
-        </View>
-        <Text style={styles.arrow}>‹</Text>
-      </TouchableOpacity>
-
-      <SectionTitle title="البطولات العالمية" action="استكشف" />
-
-      <View style={styles.leagues}>
-        {[
-          ['🏆', 'دوري أبطال أوروبا'],
-          ['🌍', 'كأس أمم إفريقيا'],
-          ['🇬🇧', 'الدوري الإنجليزي'],
-          ['🇪🇸', 'الدوري الإسباني'],
-          ['🇩🇪', 'الدوري الألماني'],
-          ['🇮🇹', 'الدوري الإيطالي'],
-          ['🇫🇷', 'الدوري الفرنسي'],
-          ['🇪🇺', 'الدوري الأوروبي'],
-          ['⭐', 'دوري المؤتمر الأوروبي'],
-        ].map((item, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.league}
-            onPress={() => setTab('البطولات')}
-          >
-            <Text style={styles.leagueIcon}>{item[0]}</Text>
-            <Text style={styles.leagueName}>{item[1]}</Text>
-            <Text style={styles.arrow}>‹</Text>
+            <Text style={{ color: '#A7C5B4', fontSize: 11, marginTop: 7, textAlign: 'center' }}>
+              {item.desc}
+            </Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 11, marginTop: 9 }}>
+              اضغط للدخول ←
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.adBox}>
-        <Text style={styles.adLabel}>مساحة إعلانية</Text>
-        <Text style={styles.adText}>
-          شركاؤنا ورعاتنا يظهرون هنا
-        </Text>
-      </View>
-    </>
+      <Text style={{ color: '#789889', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+        محتوى الغرف لا يظهر إلا بعد اختيار الغرفة
+      </Text>
+    </View>
   );
 
   const FavoritesPage = () => (
@@ -3407,9 +3226,19 @@ useEffect(() => {
           </ImageBackground>
 
             <View style={{ backgroundColor: '#101A14', borderRadius: 18, padding: 16, marginTop: 20, marginBottom: 12, borderWidth: 1, borderColor: '#245A38' }}>
-  <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 14 }}>
+
+<TouchableOpacity
+  onPress={() => setOpenedMatchSections(prev => ({ ...prev, players: !prev.players }))}
+  style={{ backgroundColor: '#153D27', borderRadius: 12, padding: 13, alignItems: 'center', marginBottom: 10 }}
+>
+  <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'center' }}>
     ⭐ أفضل لاعب وتقييمات اللاعبين
+    {'\n'}{openedMatchSections.players ? 'إخفاء التفاصيل ▲' : 'عرض التفاصيل ▼'}
   </Text>
+</TouchableOpacity>
+{openedMatchSections.players ? (
+  <>
+
 
   {playersLoading ? (
     <Text style={{ color: MUTED, textAlign: 'center', padding: 12 }}>
@@ -3480,12 +3309,23 @@ useEffect(() => {
       تقييمات اللاعبين غير متاحة لهذه المباراة حاليًا.
     </Text>
   )}
+  </>
+) : null}
 </View>
 
 <View style={{ backgroundColor: '#0B120E', borderRadius: 16, padding: 16, marginTop: 22, marginBottom: 10, borderWidth: 1, borderColor: '#203D2B' }}>
-              <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
-                التشكيلة الرسمية
-              </Text>
+              <TouchableOpacity
+  onPress={() => setOpenedMatchSections(prev => ({ ...prev, lineups: !prev.lineups }))}
+  style={{ backgroundColor: '#153D27', borderRadius: 12, padding: 13, alignItems: 'center', marginBottom: 10 }}
+>
+  <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'center' }}>
+    📋 التشكيلة الرسمية
+    {'\n'}{openedMatchSections.lineups ? 'إخفاء التشكيلة ▲' : 'عرض التشكيلة ▼'}
+  </Text>
+</TouchableOpacity>
+{openedMatchSections.lineups ? (
+  <>
+
 
               {lineupsLoading ? (
                 <Text style={{ color: MUTED, textAlign: 'center' }}>
@@ -3825,12 +3665,23 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                   {lineupsError || 'لم تُعلن التشكيلة الرسمية بعد.'}
                 </Text>
               )}
+</>
+) : null}
             </View>
 
             <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 18, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
-              <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center', marginBottom: 14 }}>
-                📊 مقارنة أداء الفريقين
-              </Text>
+              <TouchableOpacity
+  onPress={() => setOpenedMatchSections(prev => ({ ...prev, stats: !prev.stats }))}
+  style={{ backgroundColor: '#153D27', borderRadius: 12, padding: 13, alignItems: 'center', marginBottom: 10 }}
+>
+  <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'center' }}>
+    📊 مقارنة أداء الفريقين
+    {'\n'}{openedMatchSections.stats ? 'إخفاء الإحصائيات ▲' : 'عرض الإحصائيات ▼'}
+  </Text>
+</TouchableOpacity>
+{openedMatchSections.stats ? (
+  <>
+
               {statsLoading ? (
                 <Text style={{ color: MUTED, textAlign: 'center' }}>جارٍ تحميل الإحصائيات...</Text>
               ) : matchStats.length === 2 ? (
@@ -3902,7 +3753,9 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
                   {statsError || 'الإحصائيات غير متاحة حاليًا لهذه المباراة'}
                 </Text>
               )}
-            </View>
+            </>
+) : null}
+</View>
 
 
 {matchStats.length === 2 ? (() => {
@@ -3929,9 +3782,22 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
   if (factors.length === 0) {
     return (
       <View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
-        <Text style={{ color: GREEN, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>📈 مؤشر الضغط الهجومي</Text>
+        <TouchableOpacity
+  onPress={() => setOpenedMatchSections(prev => ({ ...prev, pressure: !prev.pressure }))}
+  style={{ backgroundColor: '#153D27', borderRadius: 12, padding: 13, alignItems: 'center', marginBottom: 10 }}
+>
+  <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'center' }}>
+    📈 مؤشر الضغط الهجومي
+    {'\n'}{openedMatchSections.pressure ? 'إخفاء المؤشر ▲' : 'عرض المؤشر ▼'}
+  </Text>
+</TouchableOpacity>
+{openedMatchSections.pressure ? (
+  <>
+
         <Text style={{ color: MUTED, textAlign: 'center', marginTop: 10 }}>لا تتوفر بيانات هجومية مشتركة كافية لحساب المؤشر.</Text>
-      </View>
+      </>
+) : null}
+</View>
     );
   }
 
@@ -3944,7 +3810,18 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
   return (
     <View style={{ backgroundColor: '#17231B', borderRadius: 14, padding: 14, marginTop: 12, marginBottom: 8, borderWidth: 1, borderColor: '#294735' }}>
-      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 8, letterSpacing: 0.4 }}>📈 مؤشر الضغط الهجومي</Text>
+      <TouchableOpacity
+  onPress={() => setOpenedMatchSections(prev => ({ ...prev, pressure: !prev.pressure }))}
+  style={{ backgroundColor: '#153D27', borderRadius: 12, padding: 13, alignItems: 'center', marginBottom: 10 }}
+>
+  <Text style={{ color: GREEN, fontSize: 16, fontWeight: '900', textAlign: 'center' }}>
+    📈 مؤشر الضغط الهجومي
+    {'\n'}{openedMatchSections.pressure ? 'إخفاء المؤشر ▲' : 'عرض المؤشر ▼'}
+  </Text>
+</TouchableOpacity>
+{openedMatchSections.pressure ? (
+  <>
+
       <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginBottom: 14 }}>مؤشر تقديري محسوب من إحصائيات المباراة المتاحة</Text>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
         <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'left', fontWeight: '800' }}>{matchStats[0].team?.name || 'الفريق الأول'}</Text>
@@ -3968,7 +3845,9 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           <Text style={{ color: '#FFFFFF', flex: 1, textAlign: 'right' }}>{item.second}</Text>
         </View>
       ))}
-    </View>
+    </>
+) : null}
+</View>
   );
 })() : null}
 
@@ -4012,6 +3891,20 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
   return (
     <View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
+
+      <TouchableOpacity
+        onPress={() => setOpenedMatchSections(prev => ({ ...prev, timeline: !prev.timeline }))}
+        style={{ backgroundColor: '#203D2A', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 12 }}
+      >
+        <Text style={{ color: GREEN, fontWeight: '900', fontSize: 15 }}>
+          📊 توزيع أحداث المباراة حسب الدقائق
+        </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 12, marginTop: 5 }}>
+          {openedMatchSections.timeline ? 'إخفاء الرسم ▲' : 'عرض الرسم ▼'}
+        </Text>
+      </TouchableOpacity>
+      {openedMatchSections.timeline ? (
+      <>
       <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 8 }}>
         📊 توزيع أحداث المباراة حسب الدقائق
       </Text>
@@ -4063,10 +3956,24 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           لا توجد أحداث مسجلة لعرضها في الرسم البياني حتى الآن.
         </Text>
       )}
+      </>
+      ) : null}
     </View>
   );
 })()}
 
+
+  <TouchableOpacity
+    onPress={() => setOpenedMatchSections(prev => ({ ...prev, events: !prev.events }))}
+    style={{ backgroundColor: '#203D2A', borderRadius: 10, padding: 12, alignItems: 'center', marginBottom: 12 }}
+  >
+    <Text style={{ color: GREEN, fontWeight: '900', fontSize: 15 }}>⚽ أحداث المباراة</Text>
+    <Text style={{ color: '#FFFFFF', fontSize: 12, marginTop: 5 }}>
+      {openedMatchSections.events ? 'إخفاء الأحداث ▲' : 'عرض الأحداث ▼'}
+    </Text>
+  </TouchableOpacity>
+  {openedMatchSections.events ? (
+    <>
 <View style={{ backgroundColor: '#17231B', borderRadius: 16, padding: 16, marginTop: 14, marginBottom: 10, borderWidth: 1, borderColor: '#294735' }}>
   <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: 16, letterSpacing: 0.4 }}>أحداث المباراة</Text>
   {matchEvents.length > 0 ? matchEvents.map((event, index) => {
@@ -4081,7 +3988,9 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
       </View>
     );
   }) : <Text style={{ color: MUTED, textAlign: 'center' }}>لا توجد أحداث مسجلة لهذه المباراة حتى الآن.</Text>}
-</View>
+      </View>
+    </>
+  ) : null}
 
 <TouchableOpacity
               onPress={() => setSelectedMatch(null)}
