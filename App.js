@@ -1217,13 +1217,28 @@ useEffect(() => {
 
         const data = await response.json();
 
-        if (response.status === 202 && data.accepted) {
+        if (response.ok && data.success && data.analysis) {
+          const analysis = data.analysis;
+          const evidence = Array.isArray(analysis.evidence)
+            ? analysis.evidence.map((item, index) => `${index + 1}. ${item}`).join('\n')
+            : 'لا توجد أدلة إضافية';
+
+          const limitations = Array.isArray(analysis.limitations)
+            ? analysis.limitations.map(item => '• ' + item).join('\n')
+            : 'غير محدد';
+
           Alert.alert(
-            'تم استلام اللقطة',
-            'استقبل خادم VAR الملف بنجاح. لكن محرك التحليل الذكي لم يُربط بعد، لذلك لا توجد نتيجة تحكيمية حالياً.'
+            '🤖 نتيجة تحليل VAR الذكي',
+            'الملاحظة البصرية:\n' + (analysis.observation || 'غير متوفرة') +
+            '\n\nالأدلة:\n' + evidence +
+            '\n\nالقيود:\n' + limitations +
+            '\n\nالتقييم:\n' + (analysis.assessment || 'غير متوفر') +
+            '\n\nدرجة الثقة: ' + (analysis.confidence || 'غير محددة') +
+            '\n\nالخلاصة: ' + (analysis.verdict || 'غير كافٍ للحسم') +
+            '\n\n⚠️ تحليل مساعد غير رسمي.'
           );
         } else {
-          Alert.alert('تعذر إرسال اللقطة', data.error || 'حدث خطأ أثناء إرسال الملف.');
+          Alert.alert('تعذر تحليل اللقطة', data.error || 'حدث خطأ أثناء التحليل.');
         }
       } catch (error) {
         Alert.alert('خطأ في الاتصال', String(error.message || error));
