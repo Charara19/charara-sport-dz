@@ -22,6 +22,7 @@ import * as Speech from 'expo-speech';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -179,6 +180,10 @@ export default function App() {
   const [category, setCategory] = useState('الكل');
   const [matches, setMatches] = useState([]);
   const [favoriteTeams, setFavoriteTeams] = useState([]);
+  const [varMedia, setVarMedia] = useState(null);
+  const [varCase, setVarCase] = useState('تسلل');
+  const [varSelectedMatch, setVarSelectedMatch] = useState(null);
+
 
   const toggleFavoriteTeam = async (teamName) => {
     const name = String(teamName || '').trim();
@@ -345,6 +350,7 @@ export default function App() {
     'الرئيسية',
     'المباريات',
     'شرارة AI',
+    'VAR الذكي',
     'المفضلة',
     'البث المباشر',
     'البطولات',
@@ -1120,6 +1126,147 @@ useEffect(() => {
       ) : null}
     </View>
   );
+
+
+  const VARPage = () => {
+    const varCases = ['تسلل', 'ركلة جزاء', 'لمسة يد', 'خطأ', 'بطاقة', 'هدف'];
+
+    const liveVarMatches = matches.filter(match =>
+      /الشوط الأول|الشوط الثاني|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || ''))
+    );
+
+    const pickVarMedia = async () => {
+      try {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (!permission.granted) {
+          Alert.alert('إذن الوصول', 'اسمح للتطبيق بالوصول إلى الصور والفيديو لاختيار لقطة VAR.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images', 'videos'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          const isVideo = asset.type === 'video' || String(asset.mimeType || '').startsWith('video/');
+
+          setVarMedia({
+            uri: asset.uri,
+            type: isVideo ? 'video' : 'image',
+            name: asset.fileName || (isVideo ? 'مقطع فيديو' : 'صورة'),
+          });
+        }
+      } catch (error) {
+        Alert.alert('خطأ', String(error.message || error));
+      }
+    };
+
+    return (
+      <>
+        <View style={{ backgroundColor: '#10291A', borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: '#24613A' }}>
+          <Text style={{ color: GREEN, fontSize: 25, fontWeight: '900', textAlign: 'center' }}>🎥 VAR الذكي</Text>
+          <Text style={{ color: '#DCECE0', fontSize: 13, textAlign: 'center', marginTop: 9, lineHeight: 23 }}>
+            مساعد لتحليل اللقطات والحالات التحكيمية في كرة القدم
+          </Text>
+          <Text style={{ color: '#A9BCAF', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+            أداة مساعدة وليست بديلاً عن حكم الفيديو الرسمي
+          </Text>
+        </View>
+
+        <SectionTitle title="1. اختر اللقطة للتحليل" />
+
+        <TouchableOpacity
+          onPress={pickVarMedia}
+          style={{ backgroundColor: '#153D27', borderRadius: 14, padding: 17, alignItems: 'center', marginBottom: 12 }}
+        >
+          <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>＋ اختيار صورة أو فيديو</Text>
+          <Text style={{ color: '#C5D8CB', fontSize: 11, marginTop: 6 }}>اختر لقطة محفوظة على هاتفك</Text>
+        </TouchableOpacity>
+
+        {varMedia ? (
+          <View style={{ backgroundColor: PANEL, borderRadius: 14, padding: 12, marginBottom: 16 }}>
+            {varMedia.type === 'image' ? (
+              <Image source={{ uri: varMedia.uri }} style={{ width: '100%', height: 190, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#000000' }} />
+            ) : (
+              <View style={{ height: 110, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 42 }}>🎬</Text>
+                <Text style={{ color: '#FFFFFF', marginTop: 8 }}>تم اختيار مقطع فيديو</Text>
+              </View>
+            )}
+            <Text numberOfLines={1} style={{ color: '#DCECE0', textAlign: 'center', marginTop: 9 }}>{varMedia.name}</Text>
+            <TouchableOpacity onPress={() => setVarMedia(null)} style={{ padding: 10, alignItems: 'center' }}>
+              <Text style={{ color: '#FF7777', fontWeight: '800' }}>إزالة اللقطة</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <SectionTitle title="2. نوع الحالة التحكيمية" />
+        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+          {varCases.map(item => (
+            <TouchableOpacity
+              key={item}
+              onPress={() => setVarCase(item)}
+              style={{
+                backgroundColor: varCase === item ? '#15532E' : PANEL,
+                borderColor: varCase === item ? GREEN : '#28543A',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingHorizontal: 15,
+                paddingVertical: 10,
+                margin: 4,
+              }}
+            >
+              <Text style={{ color: varCase === item ? GREEN : '#FFFFFF', fontWeight: '800' }}>{item}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <SectionTitle title="3. اختر مباراة جارية (اختياري)" />
+        {liveVarMatches.length > 0 ? liveVarMatches.map((match, index) => (
+          <TouchableOpacity
+            key={match.url || index}
+            onPress={() => setVarSelectedMatch(match.url)}
+            style={{
+              backgroundColor: varSelectedMatch === match.url ? '#153D27' : PANEL,
+              borderColor: varSelectedMatch === match.url ? GREEN : '#28543A',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 13,
+              marginBottom: 9,
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900' }}>
+              {match.home}  -  {match.away}
+            </Text>
+            <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
+              {match.status} {match.score ? ' · ' + match.score.join(' - ') : ''}
+            </Text>
+          </TouchableOpacity>
+        )) : (
+          <View style={{ backgroundColor: PANEL, borderRadius: 12, padding: 15, marginBottom: 14 }}>
+            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12 }}>
+              لا توجد مباراة جارية متاحة حاليًا في بيانات التطبيق
+            </Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          onPress={() => Alert.alert(
+            'VAR الذكي',
+            'تم تجهيز اختيار اللقطة والحالة. محرك التحليل الذكي لم يُربط بعد، لذلك لن نصدر حكمًا تحكيميًا قبل توفير التحليل الفعلي.'
+          )}
+          style={{ backgroundColor: varMedia ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>تحليل الحالة المختارة</Text>
+          {!varMedia ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر صورة أو فيديو أولاً</Text> : null}
+        </TouchableOpacity>
+      </>
+    );
+  };
 
   const BroadcastPage = () => (
     <>
@@ -4036,6 +4183,8 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           <FavoritesPage />
         ) : tab === 'شرارة AI' ? (
           <ShararaAIPage />
+        ) : tab === 'VAR الذكي' ? (
+          <VARPage />
         ) : (
           <OtherPage />
         )}
@@ -4569,12 +4718,13 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
       <View style={styles.bottomNav}>
         {tabs.map((item, index) => {
-          const icons = ['⌂', '⚽', '⚡', '★', '📺', '🏆', '♙'];
+          const icons = ['⌂', '⚽', '⚡', '🎥', '★', '📺', '🏆', '♙'];
           const active = tab === item;
           const labels = [
             'الرئيسية',
             'المباريات',
             'شرارة AI',
+            'VAR',
             'المفضلة',
             'البث',
             'البطولات',
