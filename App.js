@@ -1238,7 +1238,7 @@ useEffect(() => {
             '\n\n⚠️ تحليل مساعد غير رسمي.'
           );
         } else {
-          Alert.alert('تعذر تحليل اللقطة', data.error || 'حدث خطأ أثناء التحليل.');
+          Alert.alert('تعذر تحليل اللقطة', (data.error || 'حدث خطأ أثناء التحليل.') + (data.details ? '\n\nتفاصيل Google: ' + data.details : ''));
         }
       } catch (error) {
         Alert.alert('خطأ في الاتصال', String(error.message || error));
