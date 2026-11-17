@@ -183,6 +183,7 @@ export default function App() {
   const [varMedia, setVarMedia] = useState(null);
   const [varCase, setVarCase] = useState('تسلل');
   const [varSelectedMatch, setVarSelectedMatch] = useState(null);
+  const [varAnalyzing, setVarAnalyzing] = useState(false);
 
 
   const toggleFavoriteTeam = async (teamName) => {
@@ -1158,10 +1159,76 @@ useEffect(() => {
             uri: asset.uri,
             type: isVideo ? 'video' : 'image',
             name: asset.fileName || (isVideo ? 'مقطع فيديو' : 'صورة'),
+            mimeType: asset.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+            size: asset.fileSize || 0,
           });
         }
       } catch (error) {
         Alert.alert('خطأ', String(error.message || error));
+      }
+    };
+
+    const analyzeVarMedia = async () => {
+      if (!varMedia) {
+        Alert.alert('VAR الذكي', 'اختر صورة أو فيديو أولاً.');
+        return;
+      }
+
+      if (varAnalyzing) return;
+
+      const maxSize = varMedia.type === 'video'
+        ? 25 * 1024 * 1024
+        : 10 * 1024 * 1024;
+
+      if (varMedia.size > maxSize) {
+        Alert.alert('حجم الملف كبير', varMedia.type === 'video'
+          ? 'الحد الأقصى للفيديو هو 25 ميغابايت.'
+          : 'الحد الأقصى للصورة هو 10 ميغابايت.');
+        return;
+      }
+
+      const caseMap = {
+        'تسلل': 'offside',
+        'ركلة جزاء': 'penalty',
+        'لمسة يد': 'handball',
+        'خطأ': 'foul',
+        'بطاقة': 'card',
+        'هدف': 'goal',
+      };
+
+      try {
+        setVarAnalyzing(true);
+
+        const formData = new FormData();
+        formData.append('file', {
+          uri: varMedia.uri,
+          name: varMedia.name || (varMedia.type === 'video' ? 'clip.mp4' : 'image.jpg'),
+          type: varMedia.mimeType || (varMedia.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+        });
+        formData.append('caseType', caseMap[varCase] || 'offside');
+
+        const response = await fetch(
+          'https://charara-var-ai.hasnnoui73.workers.dev/analyze',
+          {
+            method: 'POST',
+            body: formData,
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.status === 202 && data.accepted) {
+          Alert.alert(
+            'تم استلام اللقطة',
+            'استقبل خادم VAR الملف بنجاح. لكن محرك التحليل الذكي لم يُربط بعد، لذلك لا توجد نتيجة تحكيمية حالياً.'
+          );
+        } else {
+          Alert.alert('تعذر إرسال اللقطة', data.error || 'حدث خطأ أثناء إرسال الملف.');
+        }
+      } catch (error) {
+        Alert.alert('خطأ في الاتصال', String(error.message || error));
+      } finally {
+        setVarAnalyzing(false);
       }
     };
 
@@ -1255,13 +1322,11 @@ useEffect(() => {
         )}
 
         <TouchableOpacity
-          onPress={() => Alert.alert(
-            'VAR الذكي',
-            'تم تجهيز اختيار اللقطة والحالة. محرك التحليل الذكي لم يُربط بعد، لذلك لن نصدر حكمًا تحكيميًا قبل توفير التحليل الفعلي.'
-          )}
+          onPress={analyzeVarMedia}
+          disabled={!varMedia || varAnalyzing}
           style={{ backgroundColor: varMedia ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
         >
-          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>تحليل الحالة المختارة</Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>{varAnalyzing ? 'جارٍ إرسال اللقطة...' : 'إرسال اللقطة إلى VAR'}</Text>
           {!varMedia ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر صورة أو فيديو أولاً</Text> : null}
         </TouchableOpacity>
       </>
