@@ -180,7 +180,7 @@ export default function App() {
   const [category, setCategory] = useState('الكل');
   const [matches, setMatches] = useState([]);
   const [favoriteTeams, setFavoriteTeams] = useState([]);
-  const [varMedia, setVarMedia] = useState(null);
+  const [varMedia, setVarMedia] = useState([]);
   const [varCase, setVarCase] = useState('تسلل');
   const [varSelectedMatch, setVarSelectedMatch] = useState(null);
   const [varAnalyzing, setVarAnalyzing] = useState(false);
@@ -1141,27 +1141,28 @@ useEffect(() => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
         if (!permission.granted) {
-          Alert.alert('إذن الوصول', 'اسمح للتطبيق بالوصول إلى الصور والفيديو لاختيار لقطة VAR.');
+          Alert.alert('إذن الوصول', 'اسمح للتطبيق بالوصول إلى الصور لاختيار لقطات VAR.');
           return;
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images', 'videos'],
+          mediaTypes: ['images'],
+          allowsMultipleSelection: true,
+          selectionLimit: 5,
           allowsEditing: false,
           quality: 0.8,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = result.assets[0];
-          const isVideo = asset.type === 'video' || String(asset.mimeType || '').startsWith('video/');
-
-          setVarMedia({
+          const selectedImages = result.assets.slice(0, 5).map((asset, index) => ({
             uri: asset.uri,
-            type: isVideo ? 'video' : 'image',
-            name: asset.fileName || (isVideo ? 'مقطع فيديو' : 'صورة'),
-            mimeType: asset.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+            type: 'image',
+            name: asset.fileName || 'لقطة ' + (index + 1),
+            mimeType: asset.mimeType || 'image/jpeg',
             size: asset.fileSize || 0,
-          });
+          }));
+
+          setVarMedia(selectedImages);
         }
       } catch (error) {
         Alert.alert('خطأ', String(error.message || error));
@@ -1169,21 +1170,29 @@ useEffect(() => {
     };
 
     const analyzeVarMedia = async () => {
-      if (!varMedia) {
-        Alert.alert('VAR الذكي', 'اختر صورة أو فيديو أولاً.');
+      if (!Array.isArray(varMedia) || varMedia.length === 0) {
+        Alert.alert('VAR الذكي', 'اختر صورة واحدة على الأقل أولاً.');
         return;
       }
 
       if (varAnalyzing) return;
 
-      const maxSize = varMedia.type === 'video'
-        ? 25 * 1024 * 1024
-        : 10 * 1024 * 1024;
+      if (varMedia.length > 5) {
+        Alert.alert('عدد الصور كبير', 'يمكنك اختيار 5 صور كحد أقصى.');
+        return;
+      }
 
-      if (varMedia.size > maxSize) {
-        Alert.alert('حجم الملف كبير', varMedia.type === 'video'
-          ? 'الحد الأقصى للفيديو هو 25 ميغابايت.'
-          : 'الحد الأقصى للصورة هو 10 ميغابايت.');
+      const maxImageSize = 10 * 1024 * 1024;
+      const maxTotalSize = 25 * 1024 * 1024;
+      const totalSize = varMedia.reduce((total, item) => total + (item.size || 0), 0);
+
+      if (varMedia.some(item => (item.size || 0) > maxImageSize)) {
+        Alert.alert('حجم الصورة كبير', 'الحد الأقصى لكل صورة هو 10 ميغابايت.');
+        return;
+      }
+
+      if (totalSize > maxTotalSize) {
+        Alert.alert('حجم الصور كبير', 'الحد الأقصى لمجموع الصور هو 25 ميغابايت.');
         return;
       }
 
@@ -1200,11 +1209,15 @@ useEffect(() => {
         setVarAnalyzing(true);
 
         const formData = new FormData();
-        formData.append('file', {
-          uri: varMedia.uri,
-          name: varMedia.name || (varMedia.type === 'video' ? 'clip.mp4' : 'image.jpg'),
-          type: varMedia.mimeType || (varMedia.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+
+        varMedia.forEach((item, index) => {
+          formData.append('files', {
+            uri: item.uri,
+            name: item.name || ('frame-' + (index + 1) + '.jpg'),
+            type: item.mimeType || 'image/jpeg',
+          });
         });
+
         formData.append('caseType', caseMap[varCase] || 'offside');
 
         const response = await fetch(
@@ -1220,7 +1233,7 @@ useEffect(() => {
         if (response.ok && data.success && data.analysis) {
           const analysis = data.analysis;
           const evidence = Array.isArray(analysis.evidence)
-            ? analysis.evidence.map((item, index) => `${index + 1}. ${item}`).join('\n')
+            ? analysis.evidence.map((item, index) => (index + 1) + '. ' + item).join('\n')
             : 'لا توجد أدلة إضافية';
 
           const limitations = Array.isArray(analysis.limitations)
@@ -1229,16 +1242,21 @@ useEffect(() => {
 
           Alert.alert(
             '🤖 نتيجة تحليل VAR الذكي',
-            'الملاحظة البصرية:\n' + (analysis.observation || 'غير متوفرة') +
+            'عدد الصور المحللة: ' + varMedia.length +
+            '\n\nالملاحظة البصرية:\n' + (analysis.observation || 'غير متوفرة') +
             '\n\nالأدلة:\n' + evidence +
             '\n\nالقيود:\n' + limitations +
             '\n\nالتقييم:\n' + (analysis.assessment || 'غير متوفر') +
             '\n\nدرجة الثقة: ' + (analysis.confidence || 'غير محددة') +
             '\n\nالخلاصة: ' + (analysis.verdict || 'غير كافٍ للحسم') +
-            '\n\n⚠️ تحليل مساعد غير رسمي.'
+            '\n\n⚠️ تحليل مساعد غير رسمي، وليس قرار تحكيم معتمداً.'
           );
         } else {
-          Alert.alert('تعذر تحليل اللقطة', (data.error || 'حدث خطأ أثناء التحليل.') + (data.details ? '\n\nتفاصيل Google: ' + data.details : ''));
+          Alert.alert(
+            'تعذر تحليل اللقطات',
+            (data.error || 'حدث خطأ أثناء التحليل.') +
+            (data.details ? '\n\nتفاصيل Google: ' + data.details : '')
+          );
         }
       } catch (error) {
         Alert.alert('خطأ في الاتصال', String(error.message || error));
@@ -1265,24 +1283,30 @@ useEffect(() => {
           onPress={pickVarMedia}
           style={{ backgroundColor: '#153D27', borderRadius: 14, padding: 17, alignItems: 'center', marginBottom: 12 }}
         >
-          <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>＋ اختيار صورة أو فيديو</Text>
-          <Text style={{ color: '#C5D8CB', fontSize: 11, marginTop: 6 }}>اختر لقطة محفوظة على هاتفك</Text>
+          <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>＋ اختيار حتى 5 صور متتابعة</Text>
+          <Text style={{ color: '#C5D8CB', fontSize: 11, marginTop: 6 }}>اختر صور الهجمة بالترتيب الزمني</Text>
         </TouchableOpacity>
 
-        {varMedia ? (
+        {varMedia.length > 0 ? (
           <View style={{ backgroundColor: PANEL, borderRadius: 14, padding: 12, marginBottom: 16 }}>
-            {varMedia.type === 'image' ? (
-              <Image source={{ uri: varMedia.uri }} style={{ width: '100%', height: 190, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#000000' }} />
-            ) : (
-              <View style={{ height: 110, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 42 }}>🎬</Text>
-                <Text style={{ color: '#FFFFFF', marginTop: 8 }}>تم اختيار مقطع فيديو</Text>
+            <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+              اللقطات المختارة ({varMedia.length}/5)
+            </Text>
+            {varMedia.map((item, index) => (
+              <View key={item.uri} style={{ marginBottom: 14, borderBottomWidth: index < varMedia.length - 1 ? 1 : 0, borderBottomColor: '#28543A', paddingBottom: 12 }}>
+                <Text style={{ color: GREEN, fontWeight: '900', marginBottom: 7, textAlign: 'center' }}>
+                  اللقطة رقم {index + 1}
+                </Text>
+                <Image source={{ uri: item.uri }} style={{ width: '100%', height: 170, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#000000' }} />
+                <Text numberOfLines={1} style={{ color: '#DCECE0', textAlign: 'center', marginTop: 8 }}>{item.name}</Text>
+                <TouchableOpacity
+                  onPress={() => setVarMedia(current => current.filter((_, i) => i !== index))}
+                  style={{ padding: 9, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#FF7777', fontWeight: '800' }}>إزالة هذه اللقطة</Text>
+                </TouchableOpacity>
               </View>
-            )}
-            <Text numberOfLines={1} style={{ color: '#DCECE0', textAlign: 'center', marginTop: 9 }}>{varMedia.name}</Text>
-            <TouchableOpacity onPress={() => setVarMedia(null)} style={{ padding: 10, alignItems: 'center' }}>
-              <Text style={{ color: '#FF7777', fontWeight: '800' }}>إزالة اللقطة</Text>
-            </TouchableOpacity>
+            ))}
           </View>
         ) : null}
 
@@ -1338,11 +1362,11 @@ useEffect(() => {
 
         <TouchableOpacity
           onPress={analyzeVarMedia}
-          disabled={!varMedia || varAnalyzing}
-          style={{ backgroundColor: varMedia ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
+          disabled={varMedia.length === 0 || varAnalyzing}
+          style={{ backgroundColor: varMedia.length > 0 ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
         >
           <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>{varAnalyzing ? 'جارٍ إرسال اللقطة...' : 'إرسال اللقطة إلى VAR'}</Text>
-          {!varMedia ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر صورة أو فيديو أولاً</Text> : null}
+          {varMedia.length === 0 ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر حتى 5 صور بالترتيب الزمني</Text> : null}
         </TouchableOpacity>
       </>
     );
