@@ -1876,10 +1876,10 @@ useEffect(() => {
           <View
             key={`${match.url}-${index}`}
             style={{
-              backgroundColor: '#0D1A12',
-              borderRadius: 20,
-              padding: 16,
-              marginBottom: 14,
+              backgroundColor: '#101E15',
+              borderRadius: 23,
+              padding: 18,
+              marginBottom: 16,
               borderWidth: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? 2 : 1,
               borderColor: (favoriteTeams.includes(match.home) || favoriteTeams.includes(match.away)) ? '#FFD700' : (/الشوط الأول|الشوط الثاني|استراحة بين الشوطين|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || '')) ? GREEN : '#28543A'),
               shadowColor: GREEN,
@@ -1916,7 +1916,7 @@ useEffect(() => {
                   <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
                 </TouchableOpacity>
               </View>
-              <View style={{ backgroundColor: '#07100A', paddingHorizontal: 17, paddingVertical: 12, borderRadius: 13, borderWidth: 1, borderColor: '#28623D', minWidth: 76, alignItems: 'center' }}>
+              <View style={{ backgroundColor: '#07100A', paddingHorizontal: 19, paddingVertical: 14, borderRadius: 16, borderWidth: 1.5, borderColor: GREEN, minWidth: 84, alignItems: 'center' }}>
                 <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', writingDirection: 'ltr' }}>
                   {Array.isArray(match.score) && match.score.length >= 2
                     ? `${match.score[0]} - ${match.score[1]}`
@@ -1924,7 +1924,7 @@ useEffect(() => {
                 </Text>
               </View>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 34, height: 34, resizeMode: 'contain', marginHorizontal: 5 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
+                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 42, height: 42, resizeMode: 'contain', marginHorizontal: 6 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
                 <TouchableOpacity onPress={() => toggleFavoriteTeam(match.away)} style={{ padding: 5 }}>
                   <Text style={{ color: favoriteTeams.includes(match.away) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
@@ -1934,7 +1934,7 @@ useEffect(() => {
 
             <TouchableOpacity
               onPress={() => setSelectedMatch(match)}
-              style={{ backgroundColor: '#25352A', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
+              style={{ backgroundColor: '#1C3826', borderRadius: 13, padding: 13, alignItems: 'center', marginTop: 16, borderWidth: 1, borderColor: '#315D3E' }}
             >
               <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 12 }}>
                 تفاصيل المباراة
@@ -1943,9 +1943,9 @@ useEffect(() => {
 
             <TouchableOpacity
               onPress={() => match.streamUrl ? openMatchInsideApp(match.streamUrl) : (match.isSportApiFixture || match.isAfconFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث مطابق لهذه المباراة حالياً.') : match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
-              style={{ backgroundColor: '#153D27', borderRadius: 9, padding: 11, alignItems: 'center', marginTop: 13 }}
+              style={{ backgroundColor: '#00E676', borderRadius: 13, padding: 13, alignItems: 'center', marginTop: 10 }}
             >
-              <Text style={{ color: GREEN, fontWeight: '900', fontSize: 12 }}>
+              <Text style={{ color: '#07140B', fontWeight: '900', fontSize: 13 }}>
                 ▶ مشاهدة داخل التطبيق
               </Text>
             </TouchableOpacity>
