@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   StatusBar,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -20,6 +21,7 @@ import {
 
 import * as Speech from 'expo-speech';
 import * as Notifications from 'expo-notifications';
+import * as NavigationBar from 'expo-navigation-bar';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -169,6 +171,13 @@ export default function App() {
     };
     loadLanguage();
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    NavigationBar.setButtonStyleAsync("light").catch(() => {});
+    NavigationBar.setBackgroundColorAsync("#070B09").catch(() => {});
+    NavigationBar.setBorderColorAsync("#070B09").catch(() => {});
   }, []);
 
   useEffect(() => {

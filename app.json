@@ -41,6 +41,13 @@
           "color": "#00E676",
           "defaultChannel": "match-alerts"
         }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "barStyle": "light"
+        }
       ]
     ],
     "extra": {
