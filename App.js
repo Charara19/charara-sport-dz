@@ -2132,80 +2132,228 @@ useEffect(() => {
   );
 
   const Home = () => (
-    <View style={{ paddingBottom: 24 }}>
+    <View style={{ paddingBottom: 25 }}>
       <View style={{
-        backgroundColor: '#10251A',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 22,
+        backgroundColor: '#10291C',
+        borderRadius: 25,
+        padding: 23,
+        marginBottom: 25,
         borderWidth: 1,
-        borderColor: '#267A46',
-        alignItems: 'center',
+        borderColor: '#287A49',
+        overflow: 'hidden',
       }}>
-        <Text style={{ fontSize: 38, marginBottom: 10 }}>⚽</Text>
-        <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '900', textAlign: 'center' }}>
+        <View style={{
+          alignSelf: 'flex-end',
+          backgroundColor: '#17452C',
+          paddingHorizontal: 12,
+          paddingVertical: 6,
+          borderRadius: 20,
+          marginBottom: 17,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 11, fontWeight: '900' }}>
+            منصة كرة القدم
+          </Text>
+        </View>
+
+        <Text style={{ fontSize: 43, textAlign: 'center' }}>⚽</Text>
+
+        <Text style={{
+          color: '#FFFFFF',
+          fontSize: 27,
+          fontWeight: '900',
+          textAlign: 'center',
+          marginTop: 9,
+        }}>
           شرارة سبورت DZ
         </Text>
-        <Text style={{ color: '#A7C5B4', fontSize: 13, marginTop: 8, textAlign: 'center' }}>
-          عالم كرة القدم بين يديك
+
+        <Text style={{
+          color: '#B8D4C2',
+          fontSize: 13,
+          textAlign: 'center',
+          marginTop: 9,
+          lineHeight: 22,
+        }}>
+          كل عالم كرة القدم في مكان واحد
         </Text>
-        <Text style={{ color: GREEN, fontSize: 12, marginTop: 12, textAlign: 'center' }}>
-          اختر غرفتك لعرض محتواها
-        </Text>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setTab('المباريات')}
+          style={{
+            backgroundColor: GREEN,
+            alignSelf: 'center',
+            paddingHorizontal: 25,
+            paddingVertical: 12,
+            borderRadius: 13,
+            marginTop: 19,
+          }}
+        >
+          <Text style={{ color: '#07110A', fontSize: 13, fontWeight: '900' }}>
+            اكتشف المباريات ←
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={{
-        color: '#FFFFFF',
-        fontSize: 19,
-        fontWeight: '900',
-        textAlign: 'right',
-        marginBottom: 14,
+      <View style={{
+        flexDirection: 'row-reverse',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 17,
       }}>
-        غرف التطبيق
-      </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '900' }}>
+          الوصول السريع
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11 }}>اختر القسم</Text>
+      </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 27,
+      }}>
         {[
-          { icon: '⚽', title: 'غرفة المباريات', desc: 'المواعيد والنتائج', tab: 'المباريات' },
-          { icon: '🏆', title: 'غرفة البطولات', desc: 'البطولات والترتيب', tab: 'البطولات' },
-          { icon: '⭐', title: 'غرفة المفضلة', desc: 'فرقك المفضلة', tab: 'المفضلة' },
-          { icon: '📺', title: 'غرفة البث الرسمي', desc: 'منصات المشاهدة المرخصة', tab: 'البث المباشر' },
-          { icon: '⚡', title: 'غرفة شرارة AI', desc: 'المساعد الذكي', tab: 'شرارة AI' },
-          { icon: '♙', title: 'غرفة حسابي', desc: 'إعدادات وحساب المستخدم', tab: 'حسابي' },
+          { icon: '⚽', title: 'المباريات', tab: 'المباريات', color: '#00E676' },
+          { icon: '📺', title: 'البث', tab: 'البث المباشر', color: '#42B8FF' },
+          { icon: '🏆', title: 'البطولات', tab: 'البطولات', color: '#FFC857' },
+          { icon: '★', title: 'المفضلة', tab: 'المفضلة', color: '#FFCB45' },
         ].map((item) => (
           <TouchableOpacity
             key={item.tab}
             activeOpacity={0.8}
             onPress={() => setTab(item.tab)}
             style={{
-              width: '48%',
-              minHeight: 142,
-              backgroundColor: '#111A15',
-              borderRadius: 19,
-              borderWidth: 1,
-              borderColor: '#245B42',
-              padding: 15,
-              marginBottom: 13,
+              width: '23%',
               alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
-            <Text style={{ fontSize: 31, marginBottom: 9 }}>{item.icon}</Text>
-            <Text style={{ color: GREEN, fontSize: 14, fontWeight: '900', textAlign: 'center' }}>
+            <View style={{
+              width: 59,
+              height: 59,
+              borderRadius: 30,
+              backgroundColor: '#14271C',
+              borderWidth: 1,
+              borderColor: item.color,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 9,
+            }}>
+              <Text style={{ fontSize: 26, color: item.color }}>
+                {item.icon}
+              </Text>
+            </View>
+            <Text style={{
+              color: '#E8F2EB',
+              fontSize: 11,
+              fontWeight: '800',
+              textAlign: 'center',
+            }}>
               {item.title}
-            </Text>
-            <Text style={{ color: '#A7C5B4', fontSize: 11, marginTop: 7, textAlign: 'center' }}>
-              {item.desc}
-            </Text>
-            <Text style={{ color: '#FFFFFF', fontSize: 11, marginTop: 9 }}>
-              اضغط للدخول ←
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={{ color: '#789889', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
-        محتوى الغرف لا يظهر إلا بعد اختيار الغرفة
+      <View style={{
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        marginBottom: 15,
+      }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: '900' }}>
+          اكتشف خدمات شرارة
+        </Text>
+      </View>
+
+      <View style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+      }}>
+        {[
+          {
+            icon: '⚡',
+            title: 'شرارة AI',
+            desc: 'مساعدك الذكي لكرة القدم',
+            tab: 'شرارة AI',
+            color: '#00E676',
+          },
+          {
+            icon: '🎥',
+            title: 'VAR الذكي',
+            desc: 'تحليل لقطات المباريات',
+            tab: 'VAR الذكي',
+            color: '#43B9FF',
+          },
+          {
+            icon: '♙',
+            title: 'حسابي',
+            desc: 'إعدادات وتجربة المستخدم',
+            tab: 'حسابي',
+            color: '#D6B5FF',
+          },
+          {
+            icon: '🏆',
+            title: 'عالم البطولات',
+            desc: 'الترتيب ومتابعة المنافسات',
+            tab: 'البطولات',
+            color: '#FFC857',
+          },
+        ].map((item, index) => (
+          <TouchableOpacity
+            key={item.title}
+            activeOpacity={0.82}
+            onPress={() => setTab(item.tab)}
+            style={{
+              width: '48%',
+              minHeight: 137,
+              backgroundColor: '#111A15',
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: '#294735',
+              padding: 15,
+              marginBottom: 13,
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+            }}
+          >
+            <View style={{
+              width: 42,
+              height: 42,
+              borderRadius: 13,
+              backgroundColor: '#1A3022',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 10,
+            }}>
+              <Text style={{ fontSize: 23 }}>{item.icon}</Text>
+            </View>
+            <Text style={{
+              color: item.color,
+              fontSize: 14,
+              fontWeight: '900',
+              textAlign: 'right',
+            }}>
+              {item.title}
+            </Text>
+            <Text style={{
+              color: MUTED,
+              fontSize: 10,
+              marginTop: 7,
+              textAlign: 'right',
+            }}>
+              {item.desc}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={{
+        color: '#789889',
+        fontSize: 11,
+        textAlign: 'center',
+        marginTop: 8,
+      }}>
+        شرارة سبورت DZ - شغف كرة القدم
       </Text>
     </View>
   );
