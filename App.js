@@ -361,6 +361,7 @@ export default function App() {
     'المباريات',
     'شرارة AI',
     'VAR الذكي',
+    'توقعات شرارة',
     'المفضلة',
     'البث المباشر',
     'البطولات',
@@ -1276,6 +1277,7 @@ useEffect(() => {
 
     return (
       <>
+        <Image source={require('./assets/charara-rooms/var-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
         <View style={{ backgroundColor: '#10291A', borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: '#24613A' }}>
           <Text style={{ color: GREEN, fontSize: 25, fontWeight: '900', textAlign: 'center' }}>🎥 VAR الذكي</Text>
           <Text style={{ color: '#DCECE0', fontSize: 13, textAlign: 'center', marginTop: 9, lineHeight: 23 }}>
@@ -2044,6 +2046,7 @@ useEffect(() => {
 
   const ShararaAIPage = () => (
     <View style={{ flex: 1, minHeight: 540 }}>
+      <Image source={require('./assets/charara-rooms/sharara-ai-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
       <View style={{
         backgroundColor: '#10251A',
         borderRadius: 20,
@@ -2282,6 +2285,7 @@ useEffect(() => {
           {
             icon: '⚡',
             title: 'شرارة AI',
+            image: require('./assets/charara-rooms/sharara-ai-card.png'),
             desc: 'مساعدك الذكي لكرة القدم',
             tab: 'شرارة AI',
             color: '#00E676',
@@ -2289,11 +2293,19 @@ useEffect(() => {
           {
             icon: '🎥',
             title: 'VAR الذكي',
+            image: require('./assets/charara-rooms/var-card.png'),
             desc: 'تحليل لقطات المباريات',
             tab: 'VAR الذكي',
             color: '#43B9FF',
           },
           {
+                    icon: '📊',
+                    title: 'توقعات شرارة',
+                    desc: 'تحليل إحصائي واحتمالات المباريات',
+                    tab: 'توقعات شرارة',
+                    color: '#00E676',
+                  },
+            {
             icon: '♙',
             title: 'حسابي',
             desc: 'إعدادات وتجربة المستخدم',
@@ -2334,7 +2346,7 @@ useEffect(() => {
               justifyContent: 'center',
               marginBottom: 10,
             }}>
-              <Text style={{ fontSize: 23 }}>{item.icon}</Text>
+              {item.image ? <Image source={item.image} style={{ width: 42, height: 42, borderRadius: 13 }} resizeMode="cover" /> : <Text style={{ fontSize: 23 }}>{item.icon}</Text>}
             </View>
             <Text style={{
               color: item.color,
@@ -2439,6 +2451,174 @@ useEffect(() => {
       )}
     </View>
   );
+
+  const PredictionsPage = ({ matches = [] }) => {
+    const upcomingMatches = Array.isArray(matches)
+      ? matches.filter(match =>
+          match &&
+          match.home &&
+          match.away &&
+          !match.score
+        ).slice(0, 30)
+      : [];
+
+    return (
+      <View style={{ paddingBottom: 24 }}>
+        <View style={{
+          backgroundColor: '#101A14',
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: '#245235',
+          padding: 20,
+          marginBottom: 16,
+        }}>
+          <Text style={{
+            color: GREEN,
+            fontSize: 24,
+            fontWeight: '900',
+            textAlign: 'right',
+          }}>
+            📊 توقعات شرارة
+          </Text>
+          <Text style={{
+            color: MUTED,
+            fontSize: 13,
+            textAlign: 'right',
+            marginTop: 9,
+            lineHeight: 22,
+          }}>
+            تحليل إحصائي للمباريات يعتمد على النتائج السابقة وأداء الفريقين.
+          </Text>
+        </View>
+
+        <View style={{
+          backgroundColor: '#17251B',
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: '#31543A',
+          padding: 15,
+          marginBottom: 18,
+        }}>
+          <Text style={{
+            color: '#FFD166',
+            fontSize: 14,
+            fontWeight: '900',
+            textAlign: 'right',
+          }}>
+            ⚠️ محرك التحليل قيد التجهيز
+          </Text>
+          <Text style={{
+            color: '#D0DAD2',
+            fontSize: 12,
+            textAlign: 'right',
+            marginTop: 7,
+            lineHeight: 21,
+          }}>
+            لن نعرض نسب فوز أو نتائج متوقعة دون بيانات تاريخية موثوقة، تشمل آخر خمس مباريات لكل فريق وأداءه داخل وخارج ملعبه.
+          </Text>
+        </View>
+
+        <Text style={{
+          color: '#FFFFFF',
+          fontSize: 17,
+          fontWeight: '900',
+          textAlign: 'right',
+          marginBottom: 12,
+        }}>
+          المباريات المتاحة للتحليل
+        </Text>
+
+        {upcomingMatches.length > 0 ? (
+          upcomingMatches.map((match, index) => (
+            <View
+              key={String(match.apiFootballFixtureId || match.url || index)}
+              style={{
+                backgroundColor: '#111A15',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: '#294735',
+                padding: 15,
+                marginBottom: 10,
+              }}
+            >
+              <Text style={{
+                color: MUTED,
+                fontSize: 11,
+                textAlign: 'center',
+                marginBottom: 10,
+              }}>
+                {match.league || 'بطولة أخرى'}
+              </Text>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontWeight: '900',
+                  flex: 1,
+                  textAlign: 'left',
+                }}>
+                  {match.home}
+                </Text>
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 12,
+                  fontWeight: '900',
+                  marginHorizontal: 10,
+                }}>
+                  VS
+                </Text>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontWeight: '900',
+                  flex: 1,
+                  textAlign: 'right',
+                }}>
+                  {match.away}
+                </Text>
+              </View>
+              <Text style={{
+                color: MUTED,
+                fontSize: 11,
+                textAlign: 'center',
+                marginTop: 10,
+              }}>
+                {match.matchDate || ''} {match.time || ''}
+              </Text>
+              <Text style={{
+                color: '#FFD166',
+                fontSize: 11,
+                textAlign: 'center',
+                marginTop: 8,
+              }}>
+                التحليل الإحصائي غير متاح بعد
+              </Text>
+            </View>
+          ))
+        ) : (
+          <View style={{
+            backgroundColor: '#111A15',
+            borderRadius: 14,
+            padding: 22,
+            alignItems: 'center',
+          }}>
+            <Text style={{ fontSize: 30 }}>⚽</Text>
+            <Text style={{
+              color: MUTED,
+              textAlign: 'center',
+              marginTop: 10,
+            }}>
+              لا توجد مباريات قادمة متاحة حالياً.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const OtherPage = () => {
     const [selectedLeague, setSelectedLeague] = useState('دوري أبطال أوروبا');
@@ -4592,6 +4772,8 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           <ShararaAIPage />
         ) : tab === 'VAR الذكي' ? (
           <VARPage />
+        ) : tab === 'توقعات شرارة' ? (
+          <PredictionsPage matches={matches} />
         ) : (
           <OtherPage />
         )}
