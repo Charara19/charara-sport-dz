@@ -2706,7 +2706,10 @@ useEffect(() => {
                   const name = normalizeName(
                     entry.team?.displayName || entry.team?.name
                   );
-                  const logo = entry.team?.logos?.[0]?.href;
+                  const logo =
+                    entry.team?.logos?.[0]?.href ||
+                    entry.team?.logo ||
+                    '';
                   if (name && logo) logoMap.set(name, logo);
                 });
               });
