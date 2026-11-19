@@ -5129,7 +5129,14 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
           return (
             <TouchableOpacity
               key={item}
-              style={styles.navItem}
+              style={[
+                styles.navItem,
+                active && {
+                  backgroundColor: '#10251A',
+                  borderRadius: 12,
+                  marginHorizontal: 2,
+                },
+              ]}
               onPress={() => setTab(item)}
             >
               <Text
@@ -5635,7 +5642,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   bottomNav: {
-    height: 76,
+    height: 80,
     backgroundColor: '#0B110D',
     borderTopWidth: 1,
     borderTopColor: '#245235',
@@ -5643,25 +5650,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingBottom: 4,
+    paddingTop: 5,
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
     flex: 1,
+    minHeight: 60,
   },
   navIcon: {
-    fontSize: 20,
+    fontSize: 22,
     color: MUTED,
   },
   navText: {
-    fontSize: 8,
+    fontSize: 9,
     color: MUTED,
-    marginTop: 3,
+    marginTop: 4,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   navDot: {
-    width: 4,
-    height: 4,
+    width: 5,
+    height: 5,
     borderRadius: 3,
     backgroundColor: GREEN,
     marginTop: 3,
