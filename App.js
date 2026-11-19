@@ -2859,11 +2859,11 @@ useEffect(() => {
       return (
         <View style={{ gap: 18, paddingBottom: 20 }}>
           <View style={{
-            backgroundColor: '#101A14',
-            borderWidth: 1,
-            borderColor: '#245235',
-            borderRadius: 22,
-            padding: 20,
+            backgroundColor: '#0D1D13',
+            borderWidth: 1.5,
+            borderColor: '#28613C',
+            borderRadius: 25,
+            padding: 23,
           }}>
             <Text style={{ color: GREEN, fontSize: 13, fontWeight: 'bold', textAlign: 'right' }}>
               CHARARA SPORT • LEAGUES
@@ -2897,15 +2897,15 @@ useEffect(() => {
         onPress={() => setSelectedLeague(league.name)}
         activeOpacity={0.8}
         style={{
-          width: 155,
-          minHeight: 112,
+          width: 165,
+          minHeight: 125,
           justifyContent: 'center',
           alignItems: 'center',
           backgroundColor: active ? '#173522' : '#101713',
           borderWidth: active ? 2 : 1,
           borderColor: active ? GREEN : '#26372D',
-          borderRadius: 17,
-          padding: 12,
+          borderRadius: 20,
+          padding: 14,
         }}
       >
         <Text style={{ fontSize: 27 }}>{league.icon}</Text>
@@ -2929,12 +2929,12 @@ useEffect(() => {
   })}
 </ScrollView>
           <View style={{
-            backgroundColor: '#101A14',
-            borderWidth: 1,
-            borderColor: '#245235',
-            borderRadius: 20,
-            padding: 18,
-            marginTop: 4,
+            backgroundColor: '#0F1C14',
+            borderWidth: 1.5,
+            borderColor: '#28613C',
+            borderRadius: 23,
+            padding: 20,
+            marginTop: 6,
           }}>
             <Text style={{ color: GREEN, fontSize: 12, fontWeight: 'bold', textAlign: 'right' }}>
               البطولة المختارة
@@ -2943,10 +2943,12 @@ useEffect(() => {
               {selectedLeague}
             </Text>
             <View style={{
-              backgroundColor: '#19251E',
-              borderRadius: 12,
-              padding: 14,
-              marginTop: 15,
+              backgroundColor: '#111F16',
+              borderRadius: 16,
+              padding: 16,
+              marginTop: 16,
+              borderWidth: 1,
+              borderColor: '#263F2E',
             }}>
               <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right' }}>
                 جدول الترتيب
