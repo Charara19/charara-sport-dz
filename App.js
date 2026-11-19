@@ -3419,58 +3419,199 @@ useEffect(() => {
     }
 
     return (
-      <View style={styles.pageCard}>
-        <Text style={styles.pageIcon}>👤</Text>
-        <Text style={styles.pageTitle}>حسابي</Text>
-        <Text style={styles.pageDesc}>
-          قريباً: حسابك الشخصي وعضوية شرارة Premium.
-        </Text>
-
-        <Text style={{ color: GREEN, fontWeight: "900", marginTop: 18, marginBottom: 10 }}>
-          لغة التطبيق / App language
-        </Text>
-        <View style={{ flexDirection: "row", justifyContent: "center", gap: 8 }}>
-          {[
-            { code: "ar", label: "العربية" },
-            { code: "fr", label: "Français" },
-            { code: "en", label: "English" }
-          ].map(item => (
-            <TouchableOpacity
-              key={item.code}
-              onPress={() => setLanguage(item.code)}
-              style={{
-                backgroundColor: language === item.code ? "#153D27" : PANEL,
-                borderWidth: 1,
-                borderColor: language === item.code ? GREEN : "#26372D",
-                paddingVertical: 11,
-                paddingHorizontal: 13,
-                borderRadius: 10
-              }}
-            >
-              <Text style={{ color: language === item.code ? GREEN : "#FFFFFF", fontWeight: "bold" }}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <View style={{ width: '100%', marginTop: 12, paddingBottom: 25 }}>
+        <View style={{
+          backgroundColor: '#10271A',
+          borderRadius: 22,
+          padding: 22,
+          borderWidth: 1,
+          borderColor: '#176638',
+          alignItems: 'center',
+          marginBottom: 15,
+        }}>
+          <View style={{
+            width: 72,
+            height: 72,
+            borderRadius: 22,
+            backgroundColor: '#153D27',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 13,
+          }}>
+            <Text style={{ fontSize: 38 }}>👤</Text>
+          </View>
+          <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>
+            حسابي
+          </Text>
+          <Text style={{ color: GREEN, fontSize: 13, fontWeight: '800', marginTop: 7 }}>
+            شرارة سبورت DZ
+          </Text>
+          <Text style={{
+            color: '#B0C0B5',
+            fontSize: 12,
+            textAlign: 'center',
+            marginTop: 10,
+            lineHeight: 21,
+          }}>
+            مساحتك الشخصية لمتابعة تجربتك الرياضية
+          </Text>
+          <View style={{
+            backgroundColor: '#153D27',
+            borderRadius: 20,
+            paddingVertical: 9,
+            paddingHorizontal: 17,
+            marginTop: 15,
+            borderWidth: 1,
+            borderColor: '#287A45',
+          }}>
+            <Text style={{ color: GREEN, fontSize: 12, fontWeight: '900' }}>
+              ⭐ عضوية شرارة Premium — قريباً
+            </Text>
+          </View>
         </View>
-        <Text style={styles.coming}>قريباً بإذن الله</Text>
-                <TouchableOpacity
-                  onPress={() => setSoundEnabled(v => !v)}
-                  style={{ backgroundColor: '#153D27', padding: 15, borderRadius: 12, marginTop: 18, alignItems: 'center' }}
-                >
-                  <Text style={{ color: GREEN, fontWeight: '900' }}>
-                    {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
-                  </Text>
-                </TouchableOpacity>
-        <Text style={{ color: GREEN, fontSize: 14, textAlign: 'center', marginTop: 18, fontWeight: 'bold' }}>
-          🔔 حالة الإشعارات
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 13, textAlign: 'center', marginTop: 8 }}>
-          {pushStatus}
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 6 }}>
-          الإشعارات التلقائية للأهداف تحتاج ربط خادم الإرسال.
-        </Text>
+
+        <View style={{
+          backgroundColor: PANEL,
+          borderRadius: 18,
+          padding: 17,
+          borderWidth: 1,
+          borderColor: '#253B2D',
+          marginBottom: 12,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+            🌐 لغة التطبيق
+          </Text>
+          <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 14 }}>
+            اختر اللغة المفضلة لديك
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 7 }}>
+            {[
+              { code: 'ar', label: 'العربية' },
+              { code: 'fr', label: 'Français' },
+              { code: 'en', label: 'English' }
+            ].map(item => (
+              <TouchableOpacity
+                key={item.code}
+                onPress={() => setLanguage(item.code)}
+                style={{
+                  flex: 1,
+                  backgroundColor: language === item.code ? '#153D27' : '#0B120E',
+                  borderWidth: 1,
+                  borderColor: language === item.code ? GREEN : '#26372D',
+                  paddingVertical: 13,
+                  borderRadius: 11,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  color: language === item.code ? GREEN : '#FFFFFF',
+                  fontWeight: '900',
+                  fontSize: 12,
+                }}>
+                  {item.label}
+                </Text>
+                {language === item.code ? (
+                  <Text style={{ color: GREEN, fontSize: 10, marginTop: 4 }}>✓ محددة</Text>
+                ) : null}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={{
+          backgroundColor: PANEL,
+          borderRadius: 18,
+          padding: 17,
+          borderWidth: 1,
+          borderColor: '#253B2D',
+          marginBottom: 12,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+            🔊 إعدادات الصوت
+          </Text>
+          <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 13 }}>
+            التحكم في أصوات التنبيهات
+          </Text>
+          <TouchableOpacity
+            onPress={() => setSoundEnabled(v => !v)}
+            style={{
+              backgroundColor: soundEnabled ? '#153D27' : '#241C1C',
+              padding: 14,
+              borderRadius: 12,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: soundEnabled ? '#287A45' : '#573333',
+            }}
+          >
+            <Text style={{
+              color: soundEnabled ? GREEN : '#FFAAAA',
+              fontWeight: '900',
+              fontSize: 13,
+            }}>
+              {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{
+          backgroundColor: PANEL,
+          borderRadius: 18,
+          padding: 17,
+          borderWidth: 1,
+          borderColor: '#253B2D',
+          marginBottom: 12,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+            🔔 الإشعارات
+          </Text>
+          <View style={{
+            backgroundColor: '#0B120E',
+            borderRadius: 11,
+            padding: 13,
+            marginTop: 12,
+          }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'right', fontWeight: '800' }}>
+              حالة خدمة الإشعارات
+            </Text>
+            <Text style={{
+              color: MUTED,
+              fontSize: 12,
+              textAlign: 'right',
+              marginTop: 8,
+              lineHeight: 20,
+            }}>
+              {pushStatus}
+            </Text>
+          </View>
+          <Text style={{
+            color: MUTED,
+            fontSize: 10,
+            textAlign: 'right',
+            marginTop: 10,
+            lineHeight: 18,
+          }}>
+            الإشعارات التلقائية للأهداف تحتاج ربط خادم الإرسال.
+          </Text>
+        </View>
+
+        <View style={{
+          backgroundColor: '#0D1711',
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: '#253B2D',
+          alignItems: 'center',
+        }}>
+          <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
+            شرارة سبورت DZ ⚽
+          </Text>
+          <Text style={{ color: MUTED, fontSize: 11, marginTop: 7 }}>
+            منصتك لمتابعة كرة القدم والبطولات
+          </Text>
+          <Text style={{ color: '#64766A', fontSize: 10, marginTop: 9 }}>
+            جميع الحقوق محفوظة © Charara Sport DZ
+          </Text>
+        </View>
       </View>
     );
   };
