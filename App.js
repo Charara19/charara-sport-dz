@@ -2453,14 +2453,128 @@ useEffect(() => {
   );
 
   const PredictionsPage = ({ matches = [] }) => {
+    const [predictionStates, setPredictionStates] = useState({});
+    const teamIdsCacheRef = useRef({});
+
     const upcomingMatches = Array.isArray(matches)
       ? matches.filter(match =>
-          match &&
-          match.home &&
-          match.away &&
-          !match.score
+          match && match.home && match.away && !match.score
         ).slice(0, 30)
       : [];
+
+    const normalizeTeamName = value => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\b(fc|cf|sc|ac|as)\b/g, '')
+      .replace(/[^a-z0-9]/g, '');
+
+    const resolveTeamId = async teamName => {
+      const normalized = normalizeTeamName(teamName);
+      if (!normalized) throw new Error('اسم الفريق غير صالح');
+
+      if (teamIdsCacheRef.current[normalized]) {
+        return teamIdsCacheRef.current[normalized];
+      }
+
+      const searchResponse = await fetch(
+        STATS_API_URL + 'teams/search?query=' +
+        encodeURIComponent(teamName) + '&limit=20'
+      );
+
+      if (!searchResponse.ok) {
+        throw new Error('تعذر البحث عن الفريق: ' + teamName);
+      }
+
+      const searchData = await searchResponse.json();
+      const excluded = /(women|woman|ladies|youth|reserve|u19|u20|u21|u23|ii|iii)/i;
+
+      const candidates = (searchData.teams || []).filter(team =>
+        normalizeTeamName(team.name) === normalized &&
+        !excluded.test(team.name)
+      );
+
+      if (candidates.length !== 1) {
+        throw new Error(
+          candidates.length === 0
+            ? 'لم نعثر على تطابق دقيق للفريق: ' + teamName
+            : 'اسم الفريق غير فريد، تعذر تحديد الفريق الصحيح: ' + teamName
+        );
+      }
+
+      const candidate = candidates[0];
+      const detailsResponse = await fetch(
+        STATS_API_URL + 'teams/details/' + candidate.id
+      );
+
+      if (!detailsResponse.ok) {
+        throw new Error('تعذر التحقق من بيانات الفريق: ' + teamName);
+      }
+
+      const details = await detailsResponse.json();
+      const actualName =
+        details.team?.team?.name ||
+        details.team?.name ||
+        details.team?.team_name;
+
+      if (!actualName || normalizeTeamName(actualName) !== normalized) {
+        throw new Error('تعذر تأكيد هوية الفريق: ' + teamName);
+      }
+
+      teamIdsCacheRef.current[normalized] = candidate.id;
+      return candidate.id;
+    };
+
+    const analyzeMatch = async (match, matchKey) => {
+      setPredictionStates(previous => ({
+        ...previous,
+        [matchKey]: { loading: true, result: null, error: '' }
+      }));
+
+      try {
+        const ids = await Promise.all([
+          resolveTeamId(match.home),
+          resolveTeamId(match.away)
+        ]);
+
+        if (ids[0] === ids[1]) {
+          throw new Error('تعذر التمييز بين الفريقين');
+        }
+
+        const response = await fetch(
+          STATS_API_URL + 'predictions?home=' + ids[0] +
+          '&away=' + ids[1]
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message || data.error || 'تعذر إجراء التحليل'
+          );
+        }
+
+        setPredictionStates(previous => ({
+          ...previous,
+          [matchKey]: {
+            loading: false,
+            result: data,
+            error: data.success ? '' : (
+              data.message || 'بيانات غير كافية لإصدار توقع موثوق'
+            )
+          }
+        }));
+      } catch (error) {
+        setPredictionStates(previous => ({
+          ...previous,
+          [matchKey]: {
+            loading: false,
+            result: null,
+            error: error.message || 'حدث خطأ أثناء التحليل'
+          }
+        }));
+      }
+    };
 
     return (
       <View style={{ paddingBottom: 24 }}>
@@ -2487,7 +2601,7 @@ useEffect(() => {
             marginTop: 9,
             lineHeight: 22,
           }}>
-            تحليل إحصائي للمباريات يعتمد على النتائج السابقة وأداء الفريقين.
+            تحليل إحصائي يعتمد على آخر خمس مباريات وأداء الفريقين داخل وخارج الملعب.
           </Text>
         </View>
 
@@ -2501,11 +2615,11 @@ useEffect(() => {
         }}>
           <Text style={{
             color: '#FFD166',
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: '900',
             textAlign: 'right',
           }}>
-            ⚠️ محرك التحليل قيد التجهيز
+            ⚠️ التوقعات تقديرية وليست ضماناً للنتيجة
           </Text>
           <Text style={{
             color: '#D0DAD2',
@@ -2514,7 +2628,7 @@ useEffect(() => {
             marginTop: 7,
             lineHeight: 21,
           }}>
-            لن نعرض نسب فوز أو نتائج متوقعة دون بيانات تاريخية موثوقة، تشمل آخر خمس مباريات لكل فريق وأداءه داخل وخارج ملعبه.
+            لا نعرض توقعاً عند نقص البيانات أو تعذر التأكد من هوية الفريق.
           </Text>
         </View>
 
@@ -2529,76 +2643,177 @@ useEffect(() => {
         </Text>
 
         {upcomingMatches.length > 0 ? (
-          upcomingMatches.map((match, index) => (
-            <View
-              key={String(match.apiFootballFixtureId || match.url || index)}
-              style={{
-                backgroundColor: '#111A15',
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: '#294735',
-                padding: 15,
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{
-                color: MUTED,
-                fontSize: 11,
-                textAlign: 'center',
-                marginBottom: 10,
-              }}>
-                {match.league || 'بطولة أخرى'}
-              </Text>
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}>
+          upcomingMatches.map((match, index) => {
+            const matchKey = String(
+              match.apiFootballFixtureId || match.url || index
+            );
+            const prediction = predictionStates[matchKey] || {};
+
+            return (
+              <View
+                key={matchKey}
+                style={{
+                  backgroundColor: '#111A15',
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: '#294735',
+                  padding: 15,
+                  marginBottom: 10,
+                }}
+              >
                 <Text style={{
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  fontWeight: '900',
-                  flex: 1,
-                  textAlign: 'left',
+                  color: MUTED,
+                  fontSize: 11,
+                  textAlign: 'center',
+                  marginBottom: 10,
                 }}>
-                  {match.home}
+                  {match.league || 'بطولة أخرى'}
                 </Text>
+
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    flex: 1,
+                    textAlign: 'left',
+                  }}>
+                    {match.home}
+                  </Text>
+                  <Text style={{
+                    color: GREEN,
+                    fontSize: 12,
+                    fontWeight: '900',
+                    marginHorizontal: 10,
+                  }}>
+                    VS
+                  </Text>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    flex: 1,
+                    textAlign: 'right',
+                  }}>
+                    {match.away}
+                  </Text>
+                </View>
+
                 <Text style={{
-                  color: GREEN,
-                  fontSize: 12,
-                  fontWeight: '900',
-                  marginHorizontal: 10,
+                  color: MUTED,
+                  fontSize: 11,
+                  textAlign: 'center',
+                  marginTop: 10,
                 }}>
-                  VS
+                  {match.matchDate || ''} {match.time || ''}
                 </Text>
-                <Text style={{
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  fontWeight: '900',
-                  flex: 1,
-                  textAlign: 'right',
-                }}>
-                  {match.away}
-                </Text>
+
+                <TouchableOpacity
+                  disabled={!!prediction.loading}
+                  onPress={() => analyzeMatch(match, matchKey)}
+                  style={{
+                    backgroundColor: prediction.loading ? '#26352B' : '#153D27',
+                    padding: 13,
+                    borderRadius: 10,
+                    marginTop: 13,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{
+                    color: prediction.loading ? MUTED : GREEN,
+                    fontWeight: '900',
+                    fontSize: 13,
+                  }}>
+                    {prediction.loading ? 'جارٍ تحليل المباراة...' : '📊 حلّل المباراة'}
+                  </Text>
+                </TouchableOpacity>
+
+                {prediction.error ? (
+                  <Text style={{
+                    color: '#FFD166',
+                    fontSize: 12,
+                    textAlign: 'center',
+                    marginTop: 12,
+                    lineHeight: 20,
+                  }}>
+                    {prediction.error}
+                  </Text>
+                ) : null}
+
+                {prediction.result?.success ? (
+                  <View style={{
+                    backgroundColor: '#17251B',
+                    borderRadius: 12,
+                    padding: 13,
+                    marginTop: 12,
+                    borderWidth: 1,
+                    borderColor: '#31543A',
+                  }}>
+                    <Text style={{
+                      color: GREEN,
+                      fontSize: 16,
+                      fontWeight: '900',
+                      textAlign: 'center',
+                    }}>
+                      النتيجة التقديرية: {prediction.result.predicted_score}
+                    </Text>
+
+                    <View style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      marginTop: 14,
+                    }}>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                          {prediction.result.probabilities?.away_win}%
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                          فوز الضيف
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                          {prediction.result.probabilities?.draw}%
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                          تعادل
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                          {prediction.result.probabilities?.home_win}%
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                          فوز المضيف
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Text style={{
+                      color: MUTED,
+                      fontSize: 11,
+                      textAlign: 'center',
+                      marginTop: 12,
+                    }}>
+                      عينة التحليل: {prediction.result.sample_size?.home_team} مباريات للمضيف و{prediction.result.sample_size?.away_team} للضيف
+                    </Text>
+                    <Text style={{
+                      color: '#FFD166',
+                      fontSize: 11,
+                      textAlign: 'center',
+                      marginTop: 7,
+                    }}>
+                      {prediction.result.note || 'توقع تقديري وليس ضماناً للنتيجة'}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-              <Text style={{
-                color: MUTED,
-                fontSize: 11,
-                textAlign: 'center',
-                marginTop: 10,
-              }}>
-                {match.matchDate || ''} {match.time || ''}
-              </Text>
-              <Text style={{
-                color: '#FFD166',
-                fontSize: 11,
-                textAlign: 'center',
-                marginTop: 8,
-              }}>
-                التحليل الإحصائي غير متاح بعد
-              </Text>
-            </View>
-          ))
+            );
+          })
         ) : (
           <View style={{
             backgroundColor: '#111A15',
