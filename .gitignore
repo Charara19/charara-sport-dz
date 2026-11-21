@@ -49,3 +49,6 @@ google-services.json
 *.backup
 *.before-*.backup
 *.stream-backup
+
+# Android release signing keys
+*.keystore

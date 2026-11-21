@@ -44,8 +44,73 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --non-interactive
 
+      - name: Configure permanent release signing
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: charara-sport
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_PASSWORD"
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > app/charara-sport-release.keystore
+          chmod 600 app/charara-sport-release.keystore
+          keytool -list -keystore app/charara-sport-release.keystore -alias "$ANDROID_KEY_ALIAS" -storepass:env ANDROID_KEYSTORE_PASSWORD > /dev/null
+          echo "تم التحقق من ملف مفتاح التوقيع"
+
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'app/build.gradle';
+          let gradle = fs.readFileSync(path, 'utf8');
+
+          if (!gradle.includes('signingConfigs {')) {
+            throw new Error('لم يتم العثور على signingConfigs في build.gradle');
+          }
+
+          if (gradle.includes('charara-sport-release.keystore')) {
+            throw new Error('إعداد التوقيع موجود مسبقاً؛ أوقفنا التعديل لتجنب التكرار');
+          }
+
+          gradle = gradle.replace(
+            'signingConfigs {',
+            `signingConfigs {
+              release {
+                storeFile file("charara-sport-release.keystore")
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+              }`
+          );
+
+          const buildTypesStart = gradle.indexOf('buildTypes {');
+          if (buildTypesStart < 0) {
+            throw new Error('لم يتم العثور على buildTypes');
+          }
+
+          const before = gradle.slice(0, buildTypesStart);
+          const after = gradle.slice(buildTypesStart);
+          const updated = after.replace(
+            /(release\s*\{[\s\S]*?signingConfig\s+)signingConfigs\.debug/,
+            '$1signingConfigs.release'
+          );
+
+          if (updated === after) {
+            throw new Error('تعذر ضبط توقيع Release؛ لم يتغير الملف');
+          }
+
+          fs.writeFileSync(path, before + updated);
+          console.log('تم إعداد توقيع Release بالمفتاح الدائم');
+          NODE
+
       - name: Build Release APK
         working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: charara-sport
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease

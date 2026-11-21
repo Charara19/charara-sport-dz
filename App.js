@@ -180,6 +180,1926 @@ const officialSportsChannels = [
   },
 ];
 
+const PredictionsPage = ({ matches = [], apiUrl }) => {
+  const [predictionStates, setPredictionStates] = useState({});
+  const teamIdsCacheRef = useRef({});
+
+  const upcomingMatches = Array.isArray(matches)
+    ? matches.filter(match =>
+        match && match.home && match.away && !match.score
+      ).slice(0, 30)
+    : [];
+
+  const normalizeTeamName = value => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(fc|cf|sc|ac|as)\b/g, '')
+    .replace(/[^a-z0-9]/g, '');
+
+  const resolveTeamId = async teamName => {
+    const normalized = normalizeTeamName(teamName);
+    if (!normalized) throw new Error('اسم الفريق غير صالح');
+
+    if (teamIdsCacheRef.current[normalized]) {
+      return teamIdsCacheRef.current[normalized];
+    }
+
+    const searchResponse = await fetch(
+      apiUrl + 'teams/search?query=' +
+      encodeURIComponent(teamName) + '&limit=20'
+    );
+
+    if (!searchResponse.ok) {
+      throw new Error('تعذر البحث عن الفريق: ' + teamName);
+    }
+
+    const searchData = await searchResponse.json();
+    const excluded = /(women|woman|ladies|youth|reserve|u19|u20|u21|u23|ii|iii)/i;
+
+    const candidates = (searchData.teams || []).filter(team =>
+      normalizeTeamName(team.name) === normalized &&
+      !excluded.test(team.name)
+    );
+
+    if (candidates.length !== 1) {
+      throw new Error(
+        candidates.length === 0
+          ? 'لم نعثر على تطابق دقيق للفريق: ' + teamName
+          : 'اسم الفريق غير فريد، تعذر تحديد الفريق الصحيح: ' + teamName
+      );
+    }
+
+    const candidate = candidates[0];
+    const detailsResponse = await fetch(
+      apiUrl + 'teams/details/' + candidate.id
+    );
+
+    if (!detailsResponse.ok) {
+      throw new Error('تعذر التحقق من بيانات الفريق: ' + teamName);
+    }
+
+    const details = await detailsResponse.json();
+    const actualName =
+      details.team?.team?.name ||
+      details.team?.name ||
+      details.team?.team_name;
+
+    if (!actualName || normalizeTeamName(actualName) !== normalized) {
+      throw new Error('تعذر تأكيد هوية الفريق: ' + teamName);
+    }
+
+    teamIdsCacheRef.current[normalized] = candidate.id;
+    return candidate.id;
+  };
+
+  const analyzeMatch = async (match, matchKey) => {
+    setPredictionStates(previous => ({
+      ...previous,
+      [matchKey]: { loading: true, result: null, error: '' }
+    }));
+
+    try {
+      const ids = await Promise.all([
+        resolveTeamId(match.home),
+        resolveTeamId(match.away)
+      ]);
+
+      if (ids[0] === ids[1]) {
+        throw new Error('تعذر التمييز بين الفريقين');
+      }
+
+      const response = await fetch(
+        apiUrl + 'predictions?home=' + ids[0] +
+        '&away=' + ids[1]
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || 'تعذر إجراء التحليل'
+        );
+      }
+
+      setPredictionStates(previous => ({
+        ...previous,
+        [matchKey]: {
+          loading: false,
+          result: data,
+          error: data.success ? '' : (
+            data.message || 'بيانات غير كافية لإصدار توقع موثوق'
+          )
+        }
+      }));
+    } catch (error) {
+      setPredictionStates(previous => ({
+        ...previous,
+        [matchKey]: {
+          loading: false,
+          result: null,
+          error: error.message || 'حدث خطأ أثناء التحليل'
+        }
+      }));
+    }
+  };
+
+  return (
+    <View style={{ paddingBottom: 24 }}>
+      <View style={{
+        backgroundColor: '#101A14',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#245235',
+        padding: 20,
+        marginBottom: 16,
+      }}>
+        <Text style={{
+          color: GREEN,
+          fontSize: 24,
+          fontWeight: '900',
+          textAlign: 'right',
+        }}>
+          📊 توقعات شرارة
+        </Text>
+        <Text style={{
+          color: MUTED,
+          fontSize: 13,
+          textAlign: 'right',
+          marginTop: 9,
+          lineHeight: 22,
+        }}>
+          تحليل إحصائي يعتمد على آخر خمس مباريات وأداء الفريقين داخل وخارج الملعب.
+        </Text>
+      </View>
+
+      <View style={{
+        backgroundColor: '#17251B',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#31543A',
+        padding: 15,
+        marginBottom: 18,
+      }}>
+        <Text style={{
+          color: '#FFD166',
+          fontSize: 13,
+          fontWeight: '900',
+          textAlign: 'right',
+        }}>
+          ⚠️ التوقعات تقديرية وليست ضماناً للنتيجة
+        </Text>
+        <Text style={{
+          color: '#D0DAD2',
+          fontSize: 12,
+          textAlign: 'right',
+          marginTop: 7,
+          lineHeight: 21,
+        }}>
+          لا نعرض توقعاً عند نقص البيانات أو تعذر التأكد من هوية الفريق.
+        </Text>
+      </View>
+
+      <Text style={{
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '900',
+        textAlign: 'right',
+        marginBottom: 12,
+      }}>
+        المباريات المتاحة للتحليل
+      </Text>
+
+      {upcomingMatches.length > 0 ? (
+        upcomingMatches.map((match, index) => {
+          const matchKey = String(
+            match.apiFootballFixtureId || match.url || index
+          );
+          const prediction = predictionStates[matchKey] || {};
+
+          return (
+            <View
+              key={matchKey}
+              style={{
+                backgroundColor: '#111A15',
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: '#294735',
+                padding: 15,
+                marginBottom: 10,
+              }}
+            >
+              <Text style={{
+                color: MUTED,
+                fontSize: 11,
+                textAlign: 'center',
+                marginBottom: 10,
+              }}>
+                {match.league || 'بطولة أخرى'}
+              </Text>
+
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontWeight: '900',
+                  flex: 1,
+                  textAlign: 'left',
+                }}>
+                  {match.home}
+                </Text>
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 12,
+                  fontWeight: '900',
+                  marginHorizontal: 10,
+                }}>
+                  VS
+                </Text>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  fontWeight: '900',
+                  flex: 1,
+                  textAlign: 'right',
+                }}>
+                  {match.away}
+                </Text>
+              </View>
+
+              <Text style={{
+                color: MUTED,
+                fontSize: 11,
+                textAlign: 'center',
+                marginTop: 10,
+              }}>
+                {match.matchDate || ''} {match.time || ''}
+              </Text>
+
+              <TouchableOpacity
+                disabled={!!prediction.loading}
+                onPress={() => analyzeMatch(match, matchKey)}
+                style={{
+                  backgroundColor: prediction.loading ? '#26352B' : '#153D27',
+                  padding: 13,
+                  borderRadius: 10,
+                  marginTop: 13,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  color: prediction.loading ? MUTED : GREEN,
+                  fontWeight: '900',
+                  fontSize: 13,
+                }}>
+                  {prediction.loading ? 'جارٍ تحليل المباراة...' : '📊 حلّل المباراة'}
+                </Text>
+              </TouchableOpacity>
+
+              {prediction.error ? (
+                <Text style={{
+                  color: '#FFD166',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  marginTop: 12,
+                  lineHeight: 20,
+                }}>
+                  {prediction.error}
+                </Text>
+              ) : null}
+
+              {prediction.result?.success ? (
+                <View style={{
+                  backgroundColor: '#17251B',
+                  borderRadius: 12,
+                  padding: 13,
+                  marginTop: 12,
+                  borderWidth: 1,
+                  borderColor: '#31543A',
+                }}>
+                  <Text style={{
+                    color: GREEN,
+                    fontSize: 16,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                  }}>
+                    النتيجة التقديرية: {prediction.result.predicted_score}
+                  </Text>
+
+                  <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    marginTop: 14,
+                  }}>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                        {prediction.result.probabilities?.away_win}%
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                        فوز الضيف
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                        {prediction.result.probabilities?.draw}%
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                        تعادل
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
+                        {prediction.result.probabilities?.home_win}%
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+                        فوز المضيف
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={{
+                    color: MUTED,
+                    fontSize: 11,
+                    textAlign: 'center',
+                    marginTop: 12,
+                  }}>
+                    عينة التحليل: {prediction.result.sample_size?.home_team} مباريات للمضيف و{prediction.result.sample_size?.away_team} للضيف
+                  </Text>
+                  <Text style={{
+                    color: '#FFD166',
+                    fontSize: 11,
+                    textAlign: 'center',
+                    marginTop: 7,
+                  }}>
+                    {prediction.result.note || 'توقع تقديري وليس ضماناً للنتيجة'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          );
+        })
+      ) : (
+        <View style={{
+          backgroundColor: '#111A15',
+          borderRadius: 14,
+          padding: 22,
+          alignItems: 'center',
+        }}>
+          <Text style={{ fontSize: 30 }}>⚽</Text>
+          <Text style={{
+            color: MUTED,
+            textAlign: 'center',
+            marginTop: 10,
+          }}>
+            لا توجد مباريات قادمة متاحة حالياً.
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+
+
+const OtherPage = ({ tab, apiUrl, language, setLanguage, soundEnabled, setSoundEnabled, pushStatus }) => {
+  const [selectedLeague, setSelectedLeague] = useState('دوري أبطال أوروبا');
+
+  const [standings, setStandings] = useState([]);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+  const [standingsError, setStandingsError] = useState('');
+  const [leagueFixtures, setLeagueFixtures] = useState({ upcoming: [], results: [] });
+  const [leagueFixturesLoading, setLeagueFixturesLoading] = useState(false);
+  const [leagueFixturesError, setLeagueFixturesError] = useState('');
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [teamDetails, setTeamDetails] = useState(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState('');
+
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [playerDetails, setPlayerDetails] = useState(null);
+  const [playerLoading, setPlayerLoading] = useState(false);
+  const [playerError, setPlayerError] = useState('');
+
+  const loadPlayerDetails = async (player) => {
+    if (!player?.slug) {
+      setPlayerError('لا تتوفر بيانات هذا اللاعب.');
+      return;
+    }
+
+    setSelectedPlayer(player);
+    setPlayerDetails(null);
+    setPlayerError('');
+    setPlayerLoading(true);
+
+    try {
+      const response = await fetch(
+        `https://charara-sport-standings-api.hasnnoui73.workers.dev/players/slug/${encodeURIComponent(player.slug)}`
+      );
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success || !payload.player) {
+        throw new Error('Player details request failed');
+      }
+
+      setPlayerDetails({
+        ...payload.player,
+        team: payload.team,
+        league: payload.league,
+        season: payload.season,
+        career: payload.career,
+        matches: payload.matches || [],
+      });
+    } catch (error) {
+      setPlayerError('تعذر تحميل ملف اللاعب حالياً. حاول لاحقاً.');
+    } finally {
+      setPlayerLoading(false);
+    }
+  };
+
+  const loadTeamDetails = async (team) => {
+    if (!team) return;
+
+    setSelectedTeam(team);
+    setTeamDetails(null);
+    setTeamError('');
+    setTeamLoading(true);
+
+    if (!team.slug) {
+      setTeamError('لا تتوفر بيانات قائمة هذا المنتخب في مصدر البيانات الحالي.');
+      setTeamLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://charara-sport-standings-api.hasnnoui73.workers.dev/teams/slug/${encodeURIComponent(team.slug)}`
+      );
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success || !payload.team) {
+        throw new Error('Team details request failed');
+      }
+
+      setTeamDetails(payload);
+    } catch (error) {
+      setTeamError('تعذر تحميل مباريات المنتخب حالياً. حاول مرة أخرى.');
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  const leagueIds = {
+    'كأس أمم إفريقيا': '123',
+    'دوري أبطال أوروبا': '18',
+    'الدوري الإنجليزي': '24',
+    'الدوري الإسباني': '1',
+    'الدوري الألماني': '2',
+    'الدوري الإيطالي': '3',
+    'الدوري الفرنسي': '9',
+    'دوري أبطال إفريقيا': '68116',
+    'كأس الكونفدرالية الإفريقية': '68117',
+    'تصفيات أمم إفريقيا': '72',
+    'الدوري الأوروبي': '22',
+    'دوري المؤتمر الأوروبي': '23',
+    'كأس العالم': '14022',
+    'تصفيات كأس العالم الأوروبية': '74',
+    'تصفيات كأس العالم لأمريكا الشمالية': '104',
+    'الدوري النيجيري': '66',
+    'الدوري الجنوب إفريقي': '92',
+    'دوري أبطال آسيا للنخبة': '68084',
+    'دوري أبطال آسيا 2': '68085',
+  };
+
+  useEffect(() => {
+    let active = true;
+    setStandings([]);
+    setStandingsError('');
+    setStandingsLoading(true);
+
+    const isAfcon = false; // كأس إفريقيا تستخدم SportAPI Worker
+    const isAlgerian = selectedLeague === 'الدوري الجزائري';
+    const leagueId = leagueIds[selectedLeague];
+
+    if (!isAfcon && !isAlgerian && !leagueId) {
+      setStandingsLoading(false);
+      setStandingsError('الترتيب غير متوفر لهذه البطولة من مصدر البيانات الحالي.');
+      return () => { active = false; };
+    }
+
+    const request = isAfcon
+      ? fetch('https://site.api.espn.com/apis/v2/sports/soccer/caf.nations/standings')
+          .then(async response => {
+            const payload = await response.json();
+            if (!response.ok || !Array.isArray(payload.children)) {
+              throw new Error('AFCON standings request failed');
+            }
+
+            const rows = payload.children.flatMap(group => {
+              const entries = group.standings?.entries || [];
+              const groupRows = entries.map((entry, index) => {
+                const stats = Object.fromEntries(
+                  (entry.stats || []).map(item => [
+                    item.name,
+                    item.displayValue ?? item.value ?? '0'
+                  ])
+                );
+
+                const number = name => {
+                  const value = Number.parseFloat(
+                    String(stats[name] ?? '0').replace('+', '')
+                  );
+                  return Number.isFinite(value) ? value : 0;
+                };
+
+                return {
+                  group: group.name,
+                  position: number('rank') || index + 1,
+                  team: {
+                    id: entry.team?.id,
+                    name: entry.team?.displayName || entry.team?.name || '—',
+                    short_name: entry.team?.shortDisplayName || entry.team?.abbreviation || entry.team?.name || '—',
+                  },
+                  played: number('gamesPlayed'),
+                  won: number('wins'),
+                  draw: number('ties'),
+                  lost: number('losses'),
+                  goals_for: number('pointsFor'),
+                  goals_against: number('pointsAgainst'),
+                  goal_difference: number('pointDifferential'),
+                  points: number('points'),
+                };
+              });
+
+              return groupRows.sort((a, b) => a.position - b.position);
+            });
+
+            if (!rows.length) throw new Error('No AFCON standings');
+            return rows;
+          })
+      : isAlgerian
+        ? fetch('https://charara-standings-api.hasnnoui73.workers.dev/standings?league=186&season=2024')
+            .then(async response => {
+              const payload = await response.json();
+              const groups = payload.data?.response || [];
+              const entries = groups.flatMap(item => item.league?.standings || []);
+
+              if (!response.ok || !payload.success || !entries.length) {
+                throw new Error('Algerian standings unavailable');
+              }
+
+              return entries.map(row => ({
+                group: 'الدوري الجزائري • موسم 2024',
+                position: row.rank,
+                team: {
+                  id: row.team?.id,
+                  name: row.team?.name || '—',
+                  short_name: row.team?.name || '—',
+                },
+                played: row.all?.played ?? 0,
+                won: row.all?.win ?? 0,
+                draw: row.all?.draw ?? 0,
+                lost: row.all?.lose ?? 0,
+                goals_for: row.all?.goals?.for ?? 0,
+                goals_against: row.all?.goals?.against ?? 0,
+                goal_difference: row.goalsDiff ?? 0,
+                points: row.points ?? 0,
+              }));
+            })
+        : fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
+            .then(async response => {
+            const payload = await response.json();
+            if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
+              throw new Error('Standings request failed');
+            }
+            let rows = payload.data;
+
+            const espnLeagueCodes = {
+          '123': 'caf.nations',
+          '18': 'uefa.champions',
+          '24': 'eng.1',
+          '1': 'esp.1',
+          '2': 'ger.1',
+          '3': 'ita.1',
+          '9': 'fra.1',
+          '22': 'uefa.europa',
+          '23': 'uefa.europa.conf',
+        };
+
+        const espnCode = espnLeagueCodes[String(leagueId)];
+
+        if (espnCode) {
+          try {
+            const espnResponse = await fetch(
+              'https://site.api.espn.com/apis/v2/sports/soccer/' +
+              espnCode + '/standings'
+            );
+
+            if (!espnResponse.ok) {
+              throw new Error('ESPN logos request failed');
+            }
+
+            const espnPayload = await espnResponse.json();
+            const logoMap = new Map();
+
+            const normalizeName = value => {
+              const name = String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '');
+
+              const aliases = {
+                psg: 'parissaintgermain',
+                parissg: 'parissaintgermain',
+                internazionale: 'intermilan',
+                inter: 'intermilan',
+                manutd: 'manchesterunited',
+                manunited: 'manchesterunited',
+                brighton: 'brightonandhovealbion',
+                leverkusen: 'bayerleverkusen',
+              };
+
+              return aliases[name] || name;
+            };
+
+            (espnPayload.children || []).forEach(group => {
+              (group.standings?.entries || []).forEach(entry => {
+                const name = normalizeName(
+                  entry.team?.displayName || entry.team?.name
+                );
+                const logo =
+                  entry.team?.logos?.[0]?.href ||
+                  entry.team?.logo ||
+                  '';
+                if (name && logo) logoMap.set(name, logo);
+              });
+            });
+
+            rows = rows.map(row => {
+              const name = normalizeName(row.team?.name);
+              return {
+                ...row,
+                team: {
+                  ...row.team,
+                  logo: logoMap.get(name) || row.team?.logo || '',
+                },
+              };
+            });
+          } catch (error) {
+            console.log('Team logos unavailable:', error.message);
+          }
+        }
+
+        return rows;
+          });
+
+    request
+      .then(data => {
+        if (active) setStandings(data);
+      })
+      .catch(() => {
+        if (active) {
+          setStandingsError('تعذر تحميل الترتيب حالياً. حاول مرة أخرى لاحقاً.');
+        }
+      })
+      .finally(() => {
+        if (active) setStandingsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [selectedLeague]);
+
+
+  useEffect(() => {
+    const leagueId = leagueIds[selectedLeague];
+    if (!leagueId) return;
+
+    let active = true;
+
+    const refreshStandings = async () => {
+      try {
+        const response = await fetch(
+          apiUrl + 'standings/' + leagueId
+        );
+        const payload = await response.json();
+
+        if (active && response.ok && payload.success && Array.isArray(payload.data)) {
+          setStandings(current => payload.data.map(row => {
+            const previous = current.find(item =>
+              String(item.team?.id) === String(row.team?.id)
+            );
+
+            return {
+              ...row,
+              team: {
+                ...row.team,
+                logo: row.team?.logo || previous?.team?.logo || '',
+              },
+            };
+          }));
+          setStandingsError('');
+        }
+      } catch (error) {
+        console.log('Standings refresh error:', error.message);
+      }
+    };
+
+    const interval = setInterval(refreshStandings, 5 * 60 * 1000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [selectedLeague]);
+
+  useEffect(() => {
+    const leagueId = leagueIds[selectedLeague];
+    let active = true;
+
+    setLeagueFixtures({ upcoming: [], results: [] });
+    setLeagueFixturesError('');
+
+    if (!leagueId) {
+      setLeagueFixturesLoading(false);
+      setLeagueFixturesError('مواعيد الدوري الجزائري غير متاحة من المصدر الحالي.');
+      return () => { active = false; };
+    }
+
+    const loadLeagueFixtures = async () => {
+      setLeagueFixturesLoading(true);
+      try {
+        const response = await fetch(
+          apiUrl + 'league-fixtures/' + leagueId
+        );
+        const payload = await response.json();
+
+        if (!response.ok || !payload.success || !payload.data) {
+          throw new Error('League fixtures request failed');
+        }
+
+        if (active) {
+          setLeagueFixtures({
+            upcoming: Array.isArray(payload.data.upcoming_fixtures)
+              ? payload.data.upcoming_fixtures : [],
+            results: Array.isArray(payload.data.recent_results)
+              ? payload.data.recent_results : [],
+          });
+          setLeagueFixturesError('');
+        }
+      } catch (error) {
+        if (active) {
+          setLeagueFixtures({ upcoming: [], results: [] });
+          setLeagueFixturesError('تعذر تحميل مباريات البطولة حالياً. حاول لاحقاً.');
+        }
+      } finally {
+        if (active) setLeagueFixturesLoading(false);
+      }
+    };
+
+    loadLeagueFixtures();
+    const interval = setInterval(loadLeagueFixtures, 5 * 60 * 1000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [selectedLeague]);
+
+  const leagues = [
+    { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
+    { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
+    { name: 'الدوري الإسباني', country: 'إسبانيا', icon: '🇪🇸', color: '#F87171' },
+    { name: 'الدوري الألماني', country: 'ألمانيا', icon: '🇩🇪', color: '#FBBF24' },
+    { name: 'الدوري الإيطالي', country: 'إيطاليا', icon: '🇮🇹', color: '#60A5FA' },
+    { name: 'الدوري الفرنسي', country: 'فرنسا', icon: '🇫🇷', color: '#818CF8' },
+    { name: 'الدوري الجزائري', country: 'الجزائر • موسم 2024', icon: '🇩🇿', color: '#34D399' },
+    { name: 'الدوري الأوروبي', country: 'أوروبا', icon: '🏆', color: '#F97316' },
+    { name: 'دوري المؤتمر الأوروبي', country: 'أوروبا', icon: '🏆', color: '#A3A3A3' },
+    { name: 'دوري أبطال إفريقيا', country: 'إفريقيا', icon: '🏆', color: '#FBBF24' },
+    { name: 'كأس الكونفدرالية الإفريقية', country: 'إفريقيا', icon: '🏆', color: '#D97706' },
+    { name: 'تصفيات أمم إفريقيا', country: 'إفريقيا', icon: '🌍', color: '#34D399' },
+    { name: 'كأس أمم إفريقيا', country: 'إفريقيا • نسخة 2025', icon: '🏆', color: '#FBBF24' },
+    { name: 'كأس العالم', country: 'العالم • FIFA', icon: '🌍', color: '#34D399' },
+    { name: 'تصفيات كأس العالم الأوروبية', country: 'أوروبا', icon: '🌍', color: '#60A5FA' },
+    { name: 'تصفيات كأس العالم لأمريكا الشمالية', country: 'أمريكا الشمالية والوسطى', icon: '🌎', color: '#F87171' },
+    { name: 'الدوري النيجيري', country: 'نيجيريا • إفريقيا', icon: '🇳🇬', color: '#34D399' },
+    { name: 'الدوري الجنوب إفريقي', country: 'جنوب إفريقيا', icon: '🇿🇦', color: '#FBBF24' },
+    { name: 'دوري أبطال آسيا للنخبة', country: 'آسيا', icon: '🏆', color: '#60A5FA' },
+    { name: 'دوري أبطال آسيا 2', country: 'آسيا', icon: '🏆', color: '#A78BFA' },
+  ];
+
+  if (tab === 'البطولات') {
+    return (
+      <View style={{ gap: 18, paddingBottom: 20 }}>
+        <View style={{
+          backgroundColor: '#0D1D13',
+          borderWidth: 1.5,
+          borderColor: '#28613C',
+          borderRadius: 25,
+          padding: 23,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 13, fontWeight: 'bold', textAlign: 'right' }}>
+            CHARARA SPORT • LEAGUES
+          </Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: 'bold', textAlign: 'right', marginTop: 10 }}>
+            عالم البطولات
+          </Text>
+          <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 7, lineHeight: 22 }}>
+            اختر البطولة لمتابعة معلوماتها والترتيب عند توفر البيانات الرسمية.
+          </Text>
+        </View>
+
+        <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' }}>
+اختر البطولة
+</Text>
+
+<ScrollView
+horizontal
+showsHorizontalScrollIndicator={false}
+contentContainerStyle={{
+  flexDirection: 'row-reverse',
+  gap: 10,
+  paddingVertical: 8,
+}}
+>
+{leagues.map((league) => {
+  const active = selectedLeague === league.name;
+  return (
+    <TouchableOpacity
+      key={league.name}
+      onPress={() => setSelectedLeague(league.name)}
+      activeOpacity={0.8}
+      style={{
+        width: 165,
+        minHeight: 125,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: active ? '#173522' : '#101713',
+        borderWidth: active ? 2 : 1,
+        borderColor: active ? GREEN : '#26372D',
+        borderRadius: 20,
+        padding: 14,
+      }}
+    >
+      <Text style={{ fontSize: 27 }}>{league.icon}</Text>
+      <Text
+        numberOfLines={2}
+        style={{
+          color: active ? GREEN : '#FFFFFF',
+          fontSize: 13,
+          fontWeight: 'bold',
+          textAlign: 'center',
+          marginTop: 8,
+        }}
+      >
+        {league.name}
+      </Text>
+      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
+        {league.country}
+      </Text>
+    </TouchableOpacity>
+  );
+})}
+</ScrollView>
+        <View style={{
+          backgroundColor: '#0F1C14',
+          borderWidth: 1.5,
+          borderColor: '#28613C',
+          borderRadius: 23,
+          padding: 20,
+          marginTop: 6,
+        }}>
+          <Text style={{ color: GREEN, fontSize: 12, fontWeight: 'bold', textAlign: 'right' }}>
+            البطولة المختارة
+          </Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 9 }}>
+            {selectedLeague}
+          </Text>
+          <View style={{
+            backgroundColor: '#111F16',
+            borderRadius: 16,
+            padding: 16,
+            marginTop: 16,
+            borderWidth: 1,
+            borderColor: '#263F2E',
+          }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right' }}>
+              جدول الترتيب
+            </Text>
+            {standingsLoading ? (
+              <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
+                جاري تحميل الترتيب...
+              </Text>
+            ) : standingsError ? (
+              <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12, lineHeight: 23 }}>
+                {standingsError}
+              </Text>
+            ) : standings.length > 0 ? (
+              <View style={{ marginTop: 14 }}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#203329',
+                  paddingVertical: 11,
+                  paddingHorizontal: 5,
+                  borderRadius: 9,
+                }}>
+                  <Text style={{ color: GREEN, width: 32, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>م</Text>
+                  <Text style={{ color: GREEN, flex: 1, textAlign: 'right', fontSize: 11, fontWeight: '900' }}>الفريق</Text>
+                  <Text style={{ color: GREEN, width: 30, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>لعب</Text>
+                  {selectedLeague === 'تصفيات أمم إفريقيا' && <>
+                    <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ف</Text>
+                    <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ت</Text>
+                    <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>خ</Text>
+                  </>}
+                  <Text style={{ color: GREEN, width: 34, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>فارق</Text>
+                  <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>نقاط</Text>
+                </View>
+
+                {standings.map((row, index) => (
+                  <View key={`${row.group || selectedLeague}-${row.team?.id || row.position || index}`}>
+                    {row.group && (index === 0 || standings[index - 1]?.group !== row.group) ? (
+                      <Text style={{ color: '#FBBF24', fontSize: 14, fontWeight: '900', textAlign: 'right', marginTop: 16, marginBottom: 5 }}>
+                        {row.group}
+                      </Text>
+                    ) : null}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 13,
+                        paddingHorizontal: 5,
+                        borderBottomWidth: 1,
+                        borderBottomColor: '#26372D',
+                      }}
+                    >
+                      <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
+                        {row.position ?? index + 1}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (row.team) {
+                            loadTeamDetails(row.team);
+                          }
+                        }}
+                        activeOpacity={0.7}
+                        style={{ flex: 1 }}
+                      >
+                          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
+                            <TeamLogo uri={row.team?.logo} size={24} style={{ marginLeft: 8 }} />
+                            <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                              {row.team?.short_name || row.team?.name || '—'}
+                            </Text>
+                          </View>
+                      </TouchableOpacity>
+                      <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
+                        {row.played ?? 0}
+                      </Text>
+                      {selectedLeague === 'تصفيات أمم إفريقيا' && <>
+                        <Text style={{ color: '#34D399', width: 23, textAlign: 'center', fontSize: 11 }}>{row.won ?? 0}</Text>
+                        <Text style={{ color: '#FBBF24', width: 23, textAlign: 'center', fontSize: 11 }}>{row.draw ?? 0}</Text>
+                        <Text style={{ color: '#F87171', width: 23, textAlign: 'center', fontSize: 11 }}>{row.lost ?? 0}</Text>
+                      </>}
+                      <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 11 }}>
+                        {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
+                      </Text>
+                      <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
+                        {row.points ?? 0}
+                      </Text>
+                    </View>
+                    {selectedLeague === 'تصفيات أمم إفريقيا' && Array.isArray(row.form) && row.form.length > 0 && (
+                      <View style={{ alignItems: 'flex-end', paddingHorizontal: 8, paddingBottom: 9 }}>
+                        <Text style={{ color: MUTED, fontSize: 10, marginBottom: 5 }}>آخر النتائج</Text>
+                        <View style={{ flexDirection: 'row', gap: 5 }}>
+                          {row.form.slice(-5).map((item, formIndex) => {
+                            const result = item.result;
+                            const resultColor = result === 'W' ? '#34D399' : result === 'D' ? '#FBBF24' : '#F87171';
+                            const resultLabel = result === 'W' ? 'ف' : result === 'D' ? 'ت' : 'خ';
+                            return (
+                              <View key={item.date || formIndex} style={{
+                                width: 23,
+                                height: 23,
+                                borderRadius: 6,
+                                backgroundColor: resultColor + '22',
+                                borderWidth: 1,
+                                borderColor: resultColor,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}>
+                                <Text style={{ color: resultColor, fontSize: 11, fontWeight: '900' }}>{resultLabel}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
+                لا توجد بيانات ترتيب متاحة حالياً.
+              </Text>
+            )}
+          </View>
+
+          <View style={{
+            backgroundColor: '#111A15',
+            borderWidth: 1,
+            borderColor: '#245235',
+            borderRadius: 14,
+            padding: 14,
+            marginTop: 15,
+          }}>
+            <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+              مباريات البطولة
+            </Text>
+
+            {leagueFixturesLoading ? (
+              <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12 }}>
+                جاري تحميل مباريات البطولة...
+              </Text>
+            ) : leagueFixturesError ? (
+              <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12, lineHeight: 22 }}>
+                {leagueFixturesError}
+              </Text>
+            ) : (
+              <>
+                <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
+                  المباريات القادمة
+                </Text>
+                {leagueFixtures.upcoming.length ? (
+                  leagueFixtures.upcoming.slice(0, 10).map((match, index) => (
+                    <View key={String(match.id || index)} style={{
+                      backgroundColor: '#19251E',
+                      borderRadius: 9,
+                      padding: 11,
+                      marginBottom: 7,
+                    }}>
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                        {match.date || match.datetime || '—'} • {match.stage || ''}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                        {match.home_team || '—'} ضد {match.away_team || '—'}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                    لا توجد مباريات قادمة مسجلة حالياً.
+                  </Text>
+                )}
+
+                <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
+                  آخر النتائج
+                </Text>
+                {leagueFixtures.results.length ? (
+                  leagueFixtures.results.slice(0, 10).map((match, index) => (
+                    <View key={String(match.id || index)} style={{
+                      backgroundColor: '#19251E',
+                      borderRadius: 9,
+                      padding: 11,
+                      marginBottom: 7,
+                    }}>
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                        {match.date || '—'} • {match.stage || ''}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                        {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                    لا توجد نتائج سابقة مسجلة حالياً.
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+
+          {['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) && selectedTeam && (
+            <View style={{
+              backgroundColor: '#111A15',
+              borderWidth: 1,
+              borderColor: '#245235',
+              borderRadius: 15,
+              padding: 14,
+              marginTop: 15,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedTeam(null);
+                    setTeamDetails(null);
+                    setTeamError('');
+                  }}
+                  style={{ padding: 7 }}
+                >
+                  <Text style={{ color: '#F87171', fontSize: 13, fontWeight: 'bold' }}>إغلاق ✕</Text>
+                </TouchableOpacity>
+                <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'right', flex: 1 }}>
+                  {teamDetails?.team?.name || selectedTeam.name || selectedTeam.short_name}
+                </Text>
+              </View>
+
+              {teamDetails?.team?.coach_name ? (
+                <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 5 }}>
+                  المدرب: {teamDetails.team.coach_name}
+                </Text>
+              ) : null}
+
+              {teamLoading ? (
+                <Text style={{ color: MUTED, textAlign: 'right', marginTop: 15 }}>
+                  جاري تحميل مباريات المنتخب...
+                </Text>
+              ) : teamError ? (
+                <Text style={{ color: '#F87171', textAlign: 'right', marginTop: 15 }}>
+                  {teamError}
+                </Text>
+              ) : teamDetails ? (
+                <>
+                  <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 18, marginBottom: 9 }}>
+                    المباريات السابقة
+                  </Text>
+                  {teamDetails.results?.length ? teamDetails.results.map((match, index) => (
+                    <View key={match.id || index} style={{
+                      backgroundColor: '#19251E',
+                      borderRadius: 9,
+                      padding: 11,
+                      marginBottom: 7,
+                    }}>
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                        {match.date || '—'} • {match.league_name || ''}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                        {match.home_team}  {match.home_score ?? '—'} - {match.away_score ?? '—'}  {match.away_team}
+                      </Text>
+                    </View>
+                  )) : (
+                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات سابقة.</Text>
+                  )}
+
+                  <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 15, marginBottom: 9 }}>
+                    المباريات القادمة
+                  </Text>
+                  {teamDetails.upcoming?.length ? teamDetails.upcoming.map((match, index) => (
+                    <View key={match.id || index} style={{
+                      backgroundColor: '#19251E',
+                      borderRadius: 9,
+                      padding: 11,
+                      marginBottom: 7,
+                    }}>
+                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
+                        {match.date || '—'} • {match.league_name || ''}
+                      </Text>
+                      <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
+                        {match.home_team}  ضد  {match.away_team}
+                      </Text>
+                      <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
+                        {match.datetime || match.status || ''}
+                      </Text>
+                    </View>
+                  )) : (
+                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات قادمة حالياً.</Text>
+                  )}
+
+                  <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 20, marginBottom: 10 }}>
+                    قائمة لاعبي المنتخب ({teamDetails.squad?.length || 0})
+                  </Text>
+                  {teamDetails.squad?.length ? teamDetails.squad.map((player, index) => (
+                    <TouchableOpacity
+                      key={player.slug || index}
+                      activeOpacity={0.8}
+                      onPress={() => loadPlayerDetails(player)}
+                      style={{
+                        backgroundColor: '#19251E',
+                        borderRadius: 9,
+                        padding: 11,
+                        marginBottom: 7,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
+                        #{player.jersey_number ?? '—'}
+                      </Text>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 13, fontWeight: 'bold' }}>
+                          {player.full_name || 'لاعب'}
+                        </Text>
+                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 4 }}>
+                          {player.position === 'Goalkeeper' ? 'حارس مرمى' :
+                           player.position === 'Defender' ? 'مدافع' :
+                           player.position === 'Midfielder' ? 'وسط ميدان' :
+                           player.position === 'Attacker' || player.position === 'Forward' ? 'مهاجم' :
+                           player.position || 'غير محدد'}
+                        </Text>
+                        <Text style={{ color: GREEN, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
+                          اضغط لعرض ملف اللاعب
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )) : (
+                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
+                      لا تتوفر قائمة اللاعبين حالياً.
+                    </Text>
+                  )}
+
+                  {selectedPlayer ? (
+                    <View style={{
+                      backgroundColor: '#19251E',
+                      borderColor: '#245235',
+                      borderWidth: 1,
+                      borderRadius: 12,
+                      padding: 14,
+                      marginTop: 12,
+                    }}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setSelectedPlayer(null);
+                          setPlayerDetails(null);
+                          setPlayerError('');
+                        }}
+                        style={{ alignSelf: 'flex-start', padding: 6 }}
+                      >
+                        <Text style={{ color: GREEN, fontWeight: '900' }}>إغلاق ✕</Text>
+                      </TouchableOpacity>
+
+                      {playerLoading ? (
+                        <Text style={{ color: MUTED, textAlign: 'center', padding: 18 }}>
+                          جارٍ تحميل ملف اللاعب...
+                        </Text>
+                      ) : playerError ? (
+                        <Text style={{ color: '#FF8A80', textAlign: 'center', padding: 12 }}>
+                          {playerError}
+                        </Text>
+                      ) : playerDetails ? (
+                        <>
+                          {playerDetails.photo_url ? (
+                            <Image
+                              source={{ uri: playerDetails.photo_url }}
+                              style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B' }}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: GREEN }}>
+                              <Text style={{ color: GREEN, fontSize: 38, fontWeight: '900' }}>
+                                {(playerDetails.full_name || selectedPlayer.full_name || '?').charAt(0)}
+                              </Text>
+                              <Text style={{ color: MUTED, fontSize: 9, marginTop: 3 }}>لا توجد صورة</Text>
+                            </View>
+                          )}
+
+                          <Text style={{ color: GREEN, textAlign: 'center', fontSize: 17, fontWeight: '900' }}>
+                            {playerDetails.full_name || playerDetails.name || selectedPlayer.full_name}
+                          </Text>
+                          <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 6 }}>
+                            {playerDetails.position || selectedPlayer.position || 'المركز غير متوفر'}
+                          </Text>
+                          <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 12, marginTop: 8 }}>
+                            {playerDetails.team?.full_name || 'النادي غير متوفر'}
+                          </Text>
+                          <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginTop: 4 }}>
+                            {playerDetails.league?.name || 'البطولة غير متوفرة'}
+                          </Text>
+
+                          <View style={{ marginTop: 14, gap: 9 }}>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الجنسية: {playerDetails.nationality || selectedPlayer.nationality || 'غير متوفرة'}</Text>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>رقم القميص: {playerDetails.jersey_number ?? selectedPlayer.jersey_number ?? '—'}</Text>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>تاريخ الميلاد: {playerDetails.date_of_birth || 'غير متوفر'}</Text>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الطول: {playerDetails.height || 'غير متوفر'}</Text>
+                            <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الوزن: {playerDetails.weight || 'غير متوفر'}</Text>
+                          </View>
+
+                          <View style={{ marginTop: 18, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                            <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات الموسم</Text>
+                            {[
+                              ['المشاركات', playerDetails.season?.appearances],
+                              ['المباريات أساسياً', playerDetails.season?.starts],
+                              ['دقائق اللعب', playerDetails.season?.minutes],
+                              ['الأهداف', playerDetails.season?.goals],
+                              ['التمريرات الحاسمة', playerDetails.season?.assists],
+                              ['التصديات', playerDetails.season?.saves],
+                              ['التمريرات', playerDetails.season?.passes],
+                              ['دقة التمرير', playerDetails.season?.pass_accuracy == null ? null : playerDetails.season.pass_accuracy + '%'],
+                              ['البطاقات الصفراء', playerDetails.season?.yellow],
+                              ['البطاقات الحمراء', playerDetails.season?.red],
+                            ].map(([label, value]) => (
+                              <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
+                                <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
+                              </View>
+                            ))}
+                          </View>
+
+                          <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                            <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات المسيرة</Text>
+                            {[
+                              ['المشاركات', playerDetails.career?.appearances],
+                              ['دقائق اللعب', playerDetails.career?.minutes],
+                              ['الأهداف', playerDetails.career?.goals],
+                              ['التمريرات الحاسمة', playerDetails.career?.assists],
+                              ['التصديات', playerDetails.career?.saves],
+                              ['التمريرات', playerDetails.career?.passes],
+                              ['دقة التمرير', playerDetails.career?.pass_accuracy == null ? null : playerDetails.career.pass_accuracy + '%'],
+                            ].map(([label, value]) => (
+                              <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
+                                <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
+                              </View>
+                            ))}
+                          </View>
+
+                          <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
+                            <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>آخر خمس مباريات</Text>
+                            {playerDetails.matches?.length ? (
+                              playerDetails.matches.slice(0, 5).map((match, index) => (
+                                <View key={String(match.fixture_id || index)} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
+                                  <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
+                                    {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
+                                  </Text>
+                                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
+                                    {match.date || 'التاريخ غير متوفر'} • {match.league_name || ''}
+                                  </Text>
+                                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 3 }}>
+                                    الدقائق: {match.mins_played ?? '—'} • الأهداف: {match.goals ?? 0} • التمريرات الحاسمة: {match.assists ?? 0}
+                                  </Text>
+                                </View>
+                              ))
+                            ) : (
+                              <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا تتوفر مباريات حديثة لهذا اللاعب.</Text>
+                            )}
+                          </View>
+                        </>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: '100%', marginTop: 12, paddingBottom: 25 }}>
+      <View style={{
+        backgroundColor: '#10271A',
+        borderRadius: 22,
+        padding: 22,
+        borderWidth: 1,
+        borderColor: '#176638',
+        alignItems: 'center',
+        marginBottom: 15,
+      }}>
+        <View style={{
+          width: 72,
+          height: 72,
+          borderRadius: 22,
+          backgroundColor: '#153D27',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 13,
+        }}>
+          <Text style={{ fontSize: 38 }}>👤</Text>
+        </View>
+        <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>
+          حسابي
+        </Text>
+        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '800', marginTop: 7 }}>
+          شرارة سبورت DZ
+        </Text>
+        <Text style={{
+          color: '#B0C0B5',
+          fontSize: 12,
+          textAlign: 'center',
+          marginTop: 10,
+          lineHeight: 21,
+        }}>
+          مساحتك الشخصية لمتابعة تجربتك الرياضية
+        </Text>
+        <View style={{
+          backgroundColor: '#153D27',
+          borderRadius: 20,
+          paddingVertical: 9,
+          paddingHorizontal: 17,
+          marginTop: 15,
+          borderWidth: 1,
+          borderColor: '#287A45',
+        }}>
+          <Text style={{ color: GREEN, fontSize: 12, fontWeight: '900' }}>
+            ⭐ عضوية شرارة Premium — قريباً
+          </Text>
+        </View>
+      </View>
+
+      <View style={{
+        backgroundColor: PANEL,
+        borderRadius: 18,
+        padding: 17,
+        borderWidth: 1,
+        borderColor: '#253B2D',
+        marginBottom: 12,
+      }}>
+        <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+          🌐 لغة التطبيق
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 14 }}>
+          اختر اللغة المفضلة لديك
+        </Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 7 }}>
+          {[
+            { code: 'ar', label: 'العربية' },
+            { code: 'fr', label: 'Français' },
+            { code: 'en', label: 'English' }
+          ].map(item => (
+            <TouchableOpacity
+              key={item.code}
+              onPress={() => setLanguage(item.code)}
+              style={{
+                flex: 1,
+                backgroundColor: language === item.code ? '#153D27' : '#0B120E',
+                borderWidth: 1,
+                borderColor: language === item.code ? GREEN : '#26372D',
+                paddingVertical: 13,
+                borderRadius: 11,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{
+                color: language === item.code ? GREEN : '#FFFFFF',
+                fontWeight: '900',
+                fontSize: 12,
+              }}>
+                {item.label}
+              </Text>
+              {language === item.code ? (
+                <Text style={{ color: GREEN, fontSize: 10, marginTop: 4 }}>✓ محددة</Text>
+              ) : null}
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={{
+        backgroundColor: PANEL,
+        borderRadius: 18,
+        padding: 17,
+        borderWidth: 1,
+        borderColor: '#253B2D',
+        marginBottom: 12,
+      }}>
+        <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+          🔊 إعدادات الصوت
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 13 }}>
+          التحكم في أصوات التنبيهات
+        </Text>
+        <TouchableOpacity
+          onPress={() => setSoundEnabled(v => !v)}
+          style={{
+            backgroundColor: soundEnabled ? '#153D27' : '#241C1C',
+            padding: 14,
+            borderRadius: 12,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: soundEnabled ? '#287A45' : '#573333',
+          }}
+        >
+          <Text style={{
+            color: soundEnabled ? GREEN : '#FFAAAA',
+            fontWeight: '900',
+            fontSize: 13,
+          }}>
+            {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{
+        backgroundColor: PANEL,
+        borderRadius: 18,
+        padding: 17,
+        borderWidth: 1,
+        borderColor: '#253B2D',
+        marginBottom: 12,
+      }}>
+        <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
+          🔔 الإشعارات
+        </Text>
+        <View style={{
+          backgroundColor: '#0B120E',
+          borderRadius: 11,
+          padding: 13,
+          marginTop: 12,
+        }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'right', fontWeight: '800' }}>
+            حالة خدمة الإشعارات
+          </Text>
+          <Text style={{
+            color: MUTED,
+            fontSize: 12,
+            textAlign: 'right',
+            marginTop: 8,
+            lineHeight: 20,
+          }}>
+            {pushStatus}
+          </Text>
+        </View>
+        <Text style={{
+          color: MUTED,
+          fontSize: 10,
+          textAlign: 'right',
+          marginTop: 10,
+          lineHeight: 18,
+        }}>
+          الإشعارات التلقائية للأهداف تحتاج ربط خادم الإرسال.
+        </Text>
+      </View>
+
+      <View style={{
+        backgroundColor: '#0D1711',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#253B2D',
+        alignItems: 'center',
+      }}>
+        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
+          شرارة سبورت DZ ⚽
+        </Text>
+        <Text style={{ color: MUTED, fontSize: 11, marginTop: 7 }}>
+          منصتك لمتابعة كرة القدم والبطولات
+        </Text>
+        <Text style={{ color: '#64766A', fontSize: 10, marginTop: 9 }}>
+          جميع الحقوق محفوظة © Charara Sport DZ
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+const ShararaAIPage = ({ shararaAIMessages, shararaAIMessage, setShararaAIMessage, shararaAILoading, onSend }) => (
+  <View style={{ flex: 1, minHeight: 540 }}>
+    <Image source={require('./assets/charara-rooms/sharara-ai-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
+    <View style={{
+      backgroundColor: '#10251A',
+      borderRadius: 20,
+      padding: 18,
+      marginBottom: 15,
+      borderWidth: 1,
+      borderColor: '#267A46',
+    }}>
+      <Text style={{ color: GREEN, fontSize: 23, fontWeight: '900', textAlign: 'center' }}>
+        ⚡ شرارة AI
+      </Text>
+      <Text style={{ color: '#FFFFFF', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+        مساعدك الرياضي الذكي
+      </Text>
+      <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 5 }}>
+        اسأل عن المباريات والنتائج والبطولات والإحصائيات
+      </Text>
+    </View>
+
+    <ScrollView
+      style={{ flex: 1, backgroundColor: '#0D1510', borderRadius: 16, padding: 12 }}
+      contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {shararaAIMessages.length === 0 ? (
+        <View style={{ alignItems: 'center', paddingVertical: 45 }}>
+          <Text style={{ fontSize: 42 }}>⚽</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 16, marginTop: 12 }}>
+            مرحباً بك في شرارة AI
+          </Text>
+          <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 8 }}>
+            اسأل شرارة AI وسيجيبك عن عالم كرة القدم.
+          </Text>
+          <Text style={{ color: '#D6A84B', textAlign: 'center', fontSize: 10, marginTop: 12 }}>
+            مساعدك الرياضي جاهز للمحادثة.
+          </Text>
+        </View>
+      ) : (
+        shararaAIMessages.map((item, index) => (
+          <View
+            key={index}
+            style={{
+              alignSelf: item.role === 'user' ? 'flex-start' : 'flex-end',
+              backgroundColor: item.role === 'user' ? '#153D27' : '#202B24',
+              borderRadius: 14,
+              padding: 12,
+              marginVertical: 5,
+              maxWidth: '88%',
+            }}
+          >
+            <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 21 }}>
+              {item.text}
+            </Text>
+          </View>
+        ))
+      )}
+    </ScrollView>
+
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 }}>
+      <TextInput
+        value={shararaAIMessage}
+        onChangeText={setShararaAIMessage}
+        placeholder="اكتب سؤالك الرياضي..."
+        placeholderTextColor={MUTED}
+        editable={!shararaAILoading}
+        multiline
+        style={{
+          flex: 1,
+          backgroundColor: '#17231B',
+          color: '#FFFFFF',
+          borderRadius: 13,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          minHeight: 48,
+          maxHeight: 100,
+          textAlign: 'right',
+          borderWidth: 1,
+          borderColor: '#31533B',
+        }}
+      />
+      <TouchableOpacity
+        disabled={!shararaAIMessage.trim() || shararaAILoading}
+        onPress={sendShararaAIMessage}
+        style={{
+          backgroundColor: shararaAIMessage.trim() ? GREEN : '#35443A',
+          borderRadius: 13,
+          paddingHorizontal: 17,
+          paddingVertical: 15,
+        }}
+      >
+        <Text style={{ color: '#07110A', fontWeight: '900' }}>{shararaAILoading ? '...' : 'إرسال'}</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+
+const SectionTitle = ({ title, action }) => (
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {action ? (
+      <Text style={styles.action}>{action}</Text>
+    ) : null}
+  </View>
+);
+
+const VARPage = ({ matches, varMedia, setVarMedia, varCase, setVarCase, varSelectedMatch, setVarSelectedMatch, varAnalyzing, setVarAnalyzing }) => {
+  const varCases = ['تسلل', 'ركلة جزاء', 'لمسة يد', 'خطأ', 'بطاقة', 'هدف'];
+
+  const liveVarMatches = matches.filter(match =>
+    /الشوط الأول|الشوط الثاني|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || ''))
+  );
+
+  const pickVarMedia = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('إذن الوصول', 'اسمح للتطبيق بالوصول إلى الصور لاختيار لقطات VAR.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedImages = result.assets.slice(0, 5).map((asset, index) => ({
+          uri: asset.uri,
+          type: 'image',
+          name: asset.fileName || 'لقطة ' + (index + 1),
+          mimeType: asset.mimeType || 'image/jpeg',
+          size: asset.fileSize || 0,
+        }));
+
+        setVarMedia(selectedImages);
+      }
+    } catch (error) {
+      Alert.alert('خطأ', String(error.message || error));
+    }
+  };
+
+  const analyzeVarMedia = async () => {
+    if (!Array.isArray(varMedia) || varMedia.length === 0) {
+      Alert.alert('VAR الذكي', 'اختر صورة واحدة على الأقل أولاً.');
+      return;
+    }
+
+    if (varAnalyzing) return;
+
+    if (varMedia.length > 5) {
+      Alert.alert('عدد الصور كبير', 'يمكنك اختيار 5 صور كحد أقصى.');
+      return;
+    }
+
+    const maxImageSize = 10 * 1024 * 1024;
+    const maxTotalSize = 25 * 1024 * 1024;
+    const totalSize = varMedia.reduce((total, item) => total + (item.size || 0), 0);
+
+    if (varMedia.some(item => (item.size || 0) > maxImageSize)) {
+      Alert.alert('حجم الصورة كبير', 'الحد الأقصى لكل صورة هو 10 ميغابايت.');
+      return;
+    }
+
+    if (totalSize > maxTotalSize) {
+      Alert.alert('حجم الصور كبير', 'الحد الأقصى لمجموع الصور هو 25 ميغابايت.');
+      return;
+    }
+
+    const caseMap = {
+      'تسلل': 'offside',
+      'ركلة جزاء': 'penalty',
+      'لمسة يد': 'handball',
+      'خطأ': 'foul',
+      'بطاقة': 'card',
+      'هدف': 'goal',
+    };
+
+    try {
+      setVarAnalyzing(true);
+
+      const formData = new FormData();
+
+      varMedia.forEach((item, index) => {
+        formData.append('files', {
+          uri: item.uri,
+          name: item.name || ('frame-' + (index + 1) + '.jpg'),
+          type: item.mimeType || 'image/jpeg',
+        });
+      });
+
+      formData.append('caseType', caseMap[varCase] || 'offside');
+
+      const response = await fetch(
+        'https://charara-var-ai.hasnnoui73.workers.dev/analyze',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok && data.success && data.analysis) {
+        const analysis = data.analysis;
+        const evidence = Array.isArray(analysis.evidence)
+          ? analysis.evidence.map((item, index) => (index + 1) + '. ' + item).join('\n')
+          : 'لا توجد أدلة إضافية';
+
+        const limitations = Array.isArray(analysis.limitations)
+          ? analysis.limitations.map(item => '• ' + item).join('\n')
+          : 'غير محدد';
+
+        Alert.alert(
+          '🤖 نتيجة تحليل VAR الذكي',
+          'عدد الصور المحللة: ' + varMedia.length +
+          '\n\nالملاحظة البصرية:\n' + (analysis.observation || 'غير متوفرة') +
+          '\n\nالأدلة:\n' + evidence +
+          '\n\nالقيود:\n' + limitations +
+          '\n\nالتقييم:\n' + (analysis.assessment || 'غير متوفر') +
+          '\n\nدرجة الثقة: ' + (analysis.confidence || 'غير محددة') +
+          '\n\nالخلاصة: ' + (analysis.verdict || 'غير كافٍ للحسم') +
+          '\n\n⚠️ تحليل مساعد غير رسمي، وليس قرار تحكيم معتمداً.'
+        );
+      } else {
+        Alert.alert(
+          'تعذر تحليل اللقطات',
+          (data.error || 'حدث خطأ أثناء التحليل.') +
+          (data.details ? '\n\nتفاصيل Google: ' + data.details : '')
+        );
+      }
+    } catch (error) {
+      Alert.alert('خطأ في الاتصال', String(error.message || error));
+    } finally {
+      setVarAnalyzing(false);
+    }
+  };
+
+  return (
+    <>
+      <Image source={require('./assets/charara-rooms/var-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
+      <View style={{ backgroundColor: '#10291A', borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: '#24613A' }}>
+        <Text style={{ color: GREEN, fontSize: 25, fontWeight: '900', textAlign: 'center' }}>🎥 VAR الذكي</Text>
+        <Text style={{ color: '#DCECE0', fontSize: 13, textAlign: 'center', marginTop: 9, lineHeight: 23 }}>
+          مساعد لتحليل اللقطات والحالات التحكيمية في كرة القدم
+        </Text>
+        <Text style={{ color: '#A9BCAF', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
+          أداة مساعدة وليست بديلاً عن حكم الفيديو الرسمي
+        </Text>
+      </View>
+
+      <SectionTitle title="1. اختر اللقطة للتحليل" />
+
+      <TouchableOpacity
+        onPress={pickVarMedia}
+        style={{ backgroundColor: '#153D27', borderRadius: 14, padding: 17, alignItems: 'center', marginBottom: 12 }}
+      >
+        <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>＋ اختيار حتى 5 صور متتابعة</Text>
+        <Text style={{ color: '#C5D8CB', fontSize: 11, marginTop: 6 }}>اختر صور الهجمة بالترتيب الزمني</Text>
+      </TouchableOpacity>
+
+      {varMedia.length > 0 ? (
+        <View style={{ backgroundColor: PANEL, borderRadius: 14, padding: 12, marginBottom: 16 }}>
+          <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
+            اللقطات المختارة ({varMedia.length}/5)
+          </Text>
+          {varMedia.map((item, index) => (
+            <View key={item.uri} style={{ marginBottom: 14, borderBottomWidth: index < varMedia.length - 1 ? 1 : 0, borderBottomColor: '#28543A', paddingBottom: 12 }}>
+              <Text style={{ color: GREEN, fontWeight: '900', marginBottom: 7, textAlign: 'center' }}>
+                اللقطة رقم {index + 1}
+              </Text>
+              <Image source={{ uri: item.uri }} style={{ width: '100%', height: 170, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#000000' }} />
+              <Text numberOfLines={1} style={{ color: '#DCECE0', textAlign: 'center', marginTop: 8 }}>{item.name}</Text>
+              <TouchableOpacity
+                onPress={() => setVarMedia(current => current.filter((_, i) => i !== index))}
+                style={{ padding: 9, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#FF7777', fontWeight: '800' }}>إزالة هذه اللقطة</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <SectionTitle title="2. نوع الحالة التحكيمية" />
+      <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+        {varCases.map(item => (
+          <TouchableOpacity
+            key={item}
+            onPress={() => setVarCase(item)}
+            style={{
+              backgroundColor: varCase === item ? '#15532E' : PANEL,
+              borderColor: varCase === item ? GREEN : '#28543A',
+              borderWidth: 1,
+              borderRadius: 20,
+              paddingHorizontal: 15,
+              paddingVertical: 10,
+              margin: 4,
+            }}
+          >
+            <Text style={{ color: varCase === item ? GREEN : '#FFFFFF', fontWeight: '800' }}>{item}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <SectionTitle title="3. اختر مباراة جارية (اختياري)" />
+      {liveVarMatches.length > 0 ? liveVarMatches.map((match, index) => (
+        <TouchableOpacity
+          key={match.url || index}
+          onPress={() => setVarSelectedMatch(match.url)}
+          style={{
+            backgroundColor: varSelectedMatch === match.url ? '#153D27' : PANEL,
+            borderColor: varSelectedMatch === match.url ? GREEN : '#28543A',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 13,
+            marginBottom: 9,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900' }}>
+            {match.home}  -  {match.away}
+          </Text>
+          <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
+            {match.status} {match.score ? ' · ' + match.score.join(' - ') : ''}
+          </Text>
+        </TouchableOpacity>
+      )) : (
+        <View style={{ backgroundColor: PANEL, borderRadius: 12, padding: 15, marginBottom: 14 }}>
+          <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12 }}>
+            لا توجد مباراة جارية متاحة حاليًا في بيانات التطبيق
+          </Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        onPress={analyzeVarMedia}
+        disabled={varMedia.length === 0 || varAnalyzing}
+        style={{ backgroundColor: varMedia.length > 0 ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
+      >
+        <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>{varAnalyzing ? 'جارٍ إرسال اللقطة...' : 'إرسال اللقطة إلى VAR'}</Text>
+        {varMedia.length === 0 ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر حتى 5 صور بالترتيب الزمني</Text> : null}
+      </TouchableOpacity>
+    </>
+  );
+};
+
 export default function App() {
   const [tab, setTab] = useState('الرئيسية');
   const [shararaAIMessage, setShararaAIMessage] = useState('');
@@ -312,6 +2232,8 @@ export default function App() {
   const currentFixtureIdRef = useRef(null);
   const currentFixtureTeamsRef = useRef({ homeId: null, awayId: null });
   const currentFixtureApiRef = useRef('');
+  const matchRequestIdRef = useRef(0);
+  const activeMatchUrlRef = useRef(null);
   const fixturesCacheRef = useRef({});
   const [selectedBroadcastCountry, setSelectedBroadcastCountry] = useState('الجزائر');
   const [streamUrl, setStreamUrl] = useState('');
@@ -648,7 +2570,7 @@ const fetchMatches = async (day = 'today') => {
       apiFootballLoaded = true;
 
       const allowedLeagueIds = new Set([
-        1, 2, 3, 5, 6, 12, 17, 18, 36, 39, 61, 78,
+        1, 2, 3, 5, 6, 8, 9, 12, 17, 18, 24, 36, 39, 61, 78, 88,
         89, 95, 99, 100, 101, 135, 140, 141,
         186, 187, 201, 236, 324, 334, 336,
         399, 411, 403, 435, 436, 514, 570,
@@ -768,7 +2690,7 @@ const fetchMatches = async (day = 'today') => {
       });
 
       if (candidates.length === 1) {
-        match.streamUrl = candidates[0].url;
+        // تم تعطيل ربط بث Fabor إلى حين التحقق من الترخيص.
       }
     }
 
@@ -822,6 +2744,14 @@ useEffect(() => {
     const date = match.matchDate || match.url.match(/\d{4}-\d{2}-\d{2}/)?.[0];
     if (!date) return;
 
+    const requestId = ++matchRequestIdRef.current;
+    activeMatchUrlRef.current = match.url;
+    currentFixtureIdRef.current = null;
+    currentFixtureTeamsRef.current = { homeId: null, awayId: null };
+    currentFixtureApiRef.current = '';
+    const isCurrentRequest = () =>
+      requestId === matchRequestIdRef.current && activeMatchUrlRef.current === match.url;
+
     setStatsLoading(true);
     setStatsError('');
     setMatchStats([]);
@@ -836,6 +2766,8 @@ useEffect(() => {
       const fixture = (match.isApiFootballFixture || match.isAfconFixture || match.isSportApiFixture)
         ? (match.apiFootballFixture || match.afconFixture || match.sportApiFixture)
         : await findMatchingFixture(match.home, match.away, date, match.time);
+
+      if (!isCurrentRequest()) return;
 
       if (!fixture?.fixture?.id) {
         setStatsError('لم يتم العثور على مباراة مطابقة بشكل مؤكد.');
@@ -859,12 +2791,14 @@ useEffect(() => {
           const playersResponse = await fetch(
             `${currentFixtureApiRef.current}fixtures/players?fixture=${fixture.fixture.id}`
           );
+          if (!isCurrentRequest()) return;
 
           if (!playersResponse.ok) {
             throw new Error('تعذر تحميل تقييمات اللاعبين');
           }
 
           const playersData = await playersResponse.json();
+          if (!isCurrentRequest()) return;
           const teams = playersData.data?.response || [];
 
           const ratedPlayers = teams.flatMap(team =>
@@ -903,12 +2837,12 @@ useEffect(() => {
           (b.minutesPlayed - a.minutesPlayed)
         );
 
-          setMatchPlayerRatings(ratedPlayers);
+          if (isCurrentRequest()) setMatchPlayerRatings(ratedPlayers);
         } catch (playersError) {
           console.log('Player ratings:', playersError.message);
-          setMatchPlayerRatings([]);
+          if (isCurrentRequest()) setMatchPlayerRatings([]);
         } finally {
-          setPlayersLoading(false);
+          if (isCurrentRequest()) setPlayersLoading(false);
         }
       })();
 
@@ -916,12 +2850,14 @@ useEffect(() => {
         const lineupsResponse = await fetch(
           `${currentFixtureApiRef.current}fixtures/lineups?fixture=${fixture.fixture.id}`
         );
+        if (!isCurrentRequest()) return;
 
         if (!lineupsResponse.ok) {
           throw new Error('تعذر تحميل التشكيلة');
         }
 
         const lineupsData = await lineupsResponse.json();
+        if (!isCurrentRequest()) return;
         const incomingLineups = lineupsData.data?.response || [];
         setMatchLineups(incomingLineups);
 
@@ -929,6 +2865,7 @@ useEffect(() => {
           setLineupsError('لم تُعلن التشكيلة الرسمية بعد.');
         }
       } catch (lineupError) {
+        if (!isCurrentRequest()) return;
         setMatchLineups([]);
         setLineupsError('التشكيلة غير متاحة حاليًا.');
       }
@@ -936,8 +2873,10 @@ useEffect(() => {
       const eventsResponse = await fetch(
         `${currentFixtureApiRef.current}fixtures/events?fixture=${fixture.fixture.id}`
       );
+      if (!isCurrentRequest()) return;
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
+        if (!isCurrentRequest()) return;
         const incomingEvents = eventsData.data?.response || [];
         const fixtureId = String(fixture.fixture.id);
         const eventKey = event => [
@@ -968,9 +2907,11 @@ useEffect(() => {
       const response = await fetch(
         `${currentFixtureApiRef.current}fixtures/statistics?fixture=${fixture.fixture.id}`
       );
+      if (!isCurrentRequest()) return;
       if (!response.ok) throw new Error('تعذر تحميل الإحصائيات');
 
       const data = await response.json();
+      if (!isCurrentRequest()) return;
       const statistics = data.data?.response || [];
 
       const homeId = currentFixtureTeamsRef.current.homeId;
@@ -985,17 +2926,22 @@ useEffect(() => {
 
       setMatchStats([homeStats, awayStats]);
     } catch (error) {
+      if (!isCurrentRequest()) return;
       setStatsError('تعذر تحميل إحصائيات المباراة حاليًا.');
       if (!ratingsRequestStarted) setPlayersLoading(false);
     } finally {
-      setStatsLoading(false);
-      setLineupsLoading(false);
+      if (isCurrentRequest()) {
+        setStatsLoading(false);
+        setLineupsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     if (selectedMatch) fetchMatchStats(selectedMatch);
     else {
+      ++matchRequestIdRef.current;
+      activeMatchUrlRef.current = null;
       setMatchStats([]);
       setMatchEvents([]);
       setMatchLineups([]);
@@ -1022,16 +2968,29 @@ useEffect(() => {
       if (liveUpdateInProgressRef.current) return;
       const fixtureId = currentFixtureIdRef.current;
       if (!fixtureId) return;
+
+      const liveMatchUrl = selectedMatch.url;
+      const liveRequestId = matchRequestIdRef.current;
+      const liveApiUrl = currentFixtureApiRef.current || STATS_API_URL;
+      const liveTeams = { ...currentFixtureTeamsRef.current };
+
+      const isCurrentLiveUpdate = () =>
+        liveRequestId === matchRequestIdRef.current &&
+        activeMatchUrlRef.current === liveMatchUrl &&
+        String(currentFixtureIdRef.current) === String(fixtureId);
+
       liveUpdateInProgressRef.current = true;
 
       try {
         try {
           const statusResponse = await fetch(
-            `${currentFixtureApiRef.current || STATS_API_URL}fixtures?id=${fixtureId}`
+            `${liveApiUrl}fixtures?id=${fixtureId}`
           );
+          if (!isCurrentLiveUpdate()) return;
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
+            if (!isCurrentLiveUpdate()) return;
             const latestFixture = statusData.data?.response?.[0];
             const latestStatus = latestFixture?.fixture?.status?.short;
             const homeGoals = latestFixture?.goals?.home;
@@ -1053,11 +3012,12 @@ useEffect(() => {
         }
 
         const response = await fetch(
-          `${currentFixtureApiRef.current || STATS_API_URL}fixtures/events?fixture=${fixtureId}`
+          `${liveApiUrl}fixtures/events?fixture=${fixtureId}`
         );
-        if (!response.ok) return;
+        if (!isCurrentLiveUpdate() || !response.ok) return;
 
         const data = await response.json();
+        if (!isCurrentLiveUpdate()) return;
         const incomingEvents = data.data?.response || [];
         const id = String(fixtureId);
         const eventKey = event => [
@@ -1070,6 +3030,7 @@ useEffect(() => {
           if (previousKeys.has(eventKey(event))) return;
           const type = String(event.type || '');
           const detail = String(event.detail || '');
+          if (!isCurrentLiveUpdate()) return;
           if (/goal/i.test(type)) {
             speakMatchAlert('هدف! تم تسجيل هدف');
           } else if (/card/i.test(type) && /red/i.test(detail)) {
@@ -1082,14 +3043,16 @@ useEffect(() => {
 
         if (++statsUpdateCounter % 3 === 0) {
           const statsResponse = await fetch(
-            `${currentFixtureApiRef.current || STATS_API_URL}fixtures/statistics?fixture=${fixtureId}`
+            `${liveApiUrl}fixtures/statistics?fixture=${fixtureId}`
           );
+          if (!isCurrentLiveUpdate()) return;
 
           if (statsResponse.ok) {
             const statsData = await statsResponse.json();
+            if (!isCurrentLiveUpdate()) return;
             const statistics = statsData.data?.response || [];
-            const homeId = currentFixtureTeamsRef.current.homeId;
-            const awayId = currentFixtureTeamsRef.current.awayId;
+            const homeId = liveTeams.homeId;
+            const awayId = liveTeams.awayId;
             const homeStats = statistics.find(team => String(team.team?.id) === String(homeId));
             const awayStats = statistics.find(team => String(team.team?.id) === String(awayId));
 
@@ -1161,260 +3124,6 @@ useEffect(() => {
       </View>
     </View>
   );
-
-  const SectionTitle = ({ title, action }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {action ? (
-        <Text style={styles.action}>{action}</Text>
-      ) : null}
-    </View>
-  );
-
-
-  const VARPage = () => {
-    const varCases = ['تسلل', 'ركلة جزاء', 'لمسة يد', 'خطأ', 'بطاقة', 'هدف'];
-
-    const liveVarMatches = matches.filter(match =>
-      /الشوط الأول|الشوط الثاني|وقت إضافي|ركلات الترجيح|مباشرة/.test(String(match.status || ''))
-    );
-
-    const pickVarMedia = async () => {
-      try {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (!permission.granted) {
-          Alert.alert('إذن الوصول', 'اسمح للتطبيق بالوصول إلى الصور لاختيار لقطات VAR.');
-          return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsMultipleSelection: true,
-          selectionLimit: 5,
-          allowsEditing: false,
-          quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const selectedImages = result.assets.slice(0, 5).map((asset, index) => ({
-            uri: asset.uri,
-            type: 'image',
-            name: asset.fileName || 'لقطة ' + (index + 1),
-            mimeType: asset.mimeType || 'image/jpeg',
-            size: asset.fileSize || 0,
-          }));
-
-          setVarMedia(selectedImages);
-        }
-      } catch (error) {
-        Alert.alert('خطأ', String(error.message || error));
-      }
-    };
-
-    const analyzeVarMedia = async () => {
-      if (!Array.isArray(varMedia) || varMedia.length === 0) {
-        Alert.alert('VAR الذكي', 'اختر صورة واحدة على الأقل أولاً.');
-        return;
-      }
-
-      if (varAnalyzing) return;
-
-      if (varMedia.length > 5) {
-        Alert.alert('عدد الصور كبير', 'يمكنك اختيار 5 صور كحد أقصى.');
-        return;
-      }
-
-      const maxImageSize = 10 * 1024 * 1024;
-      const maxTotalSize = 25 * 1024 * 1024;
-      const totalSize = varMedia.reduce((total, item) => total + (item.size || 0), 0);
-
-      if (varMedia.some(item => (item.size || 0) > maxImageSize)) {
-        Alert.alert('حجم الصورة كبير', 'الحد الأقصى لكل صورة هو 10 ميغابايت.');
-        return;
-      }
-
-      if (totalSize > maxTotalSize) {
-        Alert.alert('حجم الصور كبير', 'الحد الأقصى لمجموع الصور هو 25 ميغابايت.');
-        return;
-      }
-
-      const caseMap = {
-        'تسلل': 'offside',
-        'ركلة جزاء': 'penalty',
-        'لمسة يد': 'handball',
-        'خطأ': 'foul',
-        'بطاقة': 'card',
-        'هدف': 'goal',
-      };
-
-      try {
-        setVarAnalyzing(true);
-
-        const formData = new FormData();
-
-        varMedia.forEach((item, index) => {
-          formData.append('files', {
-            uri: item.uri,
-            name: item.name || ('frame-' + (index + 1) + '.jpg'),
-            type: item.mimeType || 'image/jpeg',
-          });
-        });
-
-        formData.append('caseType', caseMap[varCase] || 'offside');
-
-        const response = await fetch(
-          'https://charara-var-ai.hasnnoui73.workers.dev/analyze',
-          {
-            method: 'POST',
-            body: formData,
-          }
-        );
-
-        const data = await response.json();
-
-        if (response.ok && data.success && data.analysis) {
-          const analysis = data.analysis;
-          const evidence = Array.isArray(analysis.evidence)
-            ? analysis.evidence.map((item, index) => (index + 1) + '. ' + item).join('\n')
-            : 'لا توجد أدلة إضافية';
-
-          const limitations = Array.isArray(analysis.limitations)
-            ? analysis.limitations.map(item => '• ' + item).join('\n')
-            : 'غير محدد';
-
-          Alert.alert(
-            '🤖 نتيجة تحليل VAR الذكي',
-            'عدد الصور المحللة: ' + varMedia.length +
-            '\n\nالملاحظة البصرية:\n' + (analysis.observation || 'غير متوفرة') +
-            '\n\nالأدلة:\n' + evidence +
-            '\n\nالقيود:\n' + limitations +
-            '\n\nالتقييم:\n' + (analysis.assessment || 'غير متوفر') +
-            '\n\nدرجة الثقة: ' + (analysis.confidence || 'غير محددة') +
-            '\n\nالخلاصة: ' + (analysis.verdict || 'غير كافٍ للحسم') +
-            '\n\n⚠️ تحليل مساعد غير رسمي، وليس قرار تحكيم معتمداً.'
-          );
-        } else {
-          Alert.alert(
-            'تعذر تحليل اللقطات',
-            (data.error || 'حدث خطأ أثناء التحليل.') +
-            (data.details ? '\n\nتفاصيل Google: ' + data.details : '')
-          );
-        }
-      } catch (error) {
-        Alert.alert('خطأ في الاتصال', String(error.message || error));
-      } finally {
-        setVarAnalyzing(false);
-      }
-    };
-
-    return (
-      <>
-        <Image source={require('./assets/charara-rooms/var-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
-        <View style={{ backgroundColor: '#10291A', borderRadius: 20, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: '#24613A' }}>
-          <Text style={{ color: GREEN, fontSize: 25, fontWeight: '900', textAlign: 'center' }}>🎥 VAR الذكي</Text>
-          <Text style={{ color: '#DCECE0', fontSize: 13, textAlign: 'center', marginTop: 9, lineHeight: 23 }}>
-            مساعد لتحليل اللقطات والحالات التحكيمية في كرة القدم
-          </Text>
-          <Text style={{ color: '#A9BCAF', fontSize: 11, textAlign: 'center', marginTop: 8 }}>
-            أداة مساعدة وليست بديلاً عن حكم الفيديو الرسمي
-          </Text>
-        </View>
-
-        <SectionTitle title="1. اختر اللقطة للتحليل" />
-
-        <TouchableOpacity
-          onPress={pickVarMedia}
-          style={{ backgroundColor: '#153D27', borderRadius: 14, padding: 17, alignItems: 'center', marginBottom: 12 }}
-        >
-          <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900' }}>＋ اختيار حتى 5 صور متتابعة</Text>
-          <Text style={{ color: '#C5D8CB', fontSize: 11, marginTop: 6 }}>اختر صور الهجمة بالترتيب الزمني</Text>
-        </TouchableOpacity>
-
-        {varMedia.length > 0 ? (
-          <View style={{ backgroundColor: PANEL, borderRadius: 14, padding: 12, marginBottom: 16 }}>
-            <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>
-              اللقطات المختارة ({varMedia.length}/5)
-            </Text>
-            {varMedia.map((item, index) => (
-              <View key={item.uri} style={{ marginBottom: 14, borderBottomWidth: index < varMedia.length - 1 ? 1 : 0, borderBottomColor: '#28543A', paddingBottom: 12 }}>
-                <Text style={{ color: GREEN, fontWeight: '900', marginBottom: 7, textAlign: 'center' }}>
-                  اللقطة رقم {index + 1}
-                </Text>
-                <Image source={{ uri: item.uri }} style={{ width: '100%', height: 170, borderRadius: 10, resizeMode: 'contain', backgroundColor: '#000000' }} />
-                <Text numberOfLines={1} style={{ color: '#DCECE0', textAlign: 'center', marginTop: 8 }}>{item.name}</Text>
-                <TouchableOpacity
-                  onPress={() => setVarMedia(current => current.filter((_, i) => i !== index))}
-                  style={{ padding: 9, alignItems: 'center' }}
-                >
-                  <Text style={{ color: '#FF7777', fontWeight: '800' }}>إزالة هذه اللقطة</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        <SectionTitle title="2. نوع الحالة التحكيمية" />
-        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
-          {varCases.map(item => (
-            <TouchableOpacity
-              key={item}
-              onPress={() => setVarCase(item)}
-              style={{
-                backgroundColor: varCase === item ? '#15532E' : PANEL,
-                borderColor: varCase === item ? GREEN : '#28543A',
-                borderWidth: 1,
-                borderRadius: 20,
-                paddingHorizontal: 15,
-                paddingVertical: 10,
-                margin: 4,
-              }}
-            >
-              <Text style={{ color: varCase === item ? GREEN : '#FFFFFF', fontWeight: '800' }}>{item}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <SectionTitle title="3. اختر مباراة جارية (اختياري)" />
-        {liveVarMatches.length > 0 ? liveVarMatches.map((match, index) => (
-          <TouchableOpacity
-            key={match.url || index}
-            onPress={() => setVarSelectedMatch(match.url)}
-            style={{
-              backgroundColor: varSelectedMatch === match.url ? '#153D27' : PANEL,
-              borderColor: varSelectedMatch === match.url ? GREEN : '#28543A',
-              borderWidth: 1,
-              borderRadius: 12,
-              padding: 13,
-              marginBottom: 9,
-            }}
-          >
-            <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900' }}>
-              {match.home}  -  {match.away}
-            </Text>
-            <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
-              {match.status} {match.score ? ' · ' + match.score.join(' - ') : ''}
-            </Text>
-          </TouchableOpacity>
-        )) : (
-          <View style={{ backgroundColor: PANEL, borderRadius: 12, padding: 15, marginBottom: 14 }}>
-            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12 }}>
-              لا توجد مباراة جارية متاحة حاليًا في بيانات التطبيق
-            </Text>
-          </View>
-        )}
-
-        <TouchableOpacity
-          onPress={analyzeVarMedia}
-          disabled={varMedia.length === 0 || varAnalyzing}
-          style={{ backgroundColor: varMedia.length > 0 ? '#087A48' : '#25352A', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 8, marginBottom: 18 }}
-        >
-          <Text style={{ color: '#FFFFFF', fontSize: 15, fontWeight: '900' }}>{varAnalyzing ? 'جارٍ إرسال اللقطة...' : 'إرسال اللقطة إلى VAR'}</Text>
-          {varMedia.length === 0 ? <Text style={{ color: '#B9C9BE', fontSize: 10, marginTop: 5 }}>اختر حتى 5 صور بالترتيب الزمني</Text> : null}
-        </TouchableOpacity>
-      </>
-    );
-  };
 
   const BroadcastPage = () => (
     <>
@@ -1984,11 +3693,11 @@ useEffect(() => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => match.streamUrl ? openMatchInsideApp(match.streamUrl) : (match.isSportApiFixture || match.isAfconFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث مطابق لهذه المباراة حالياً.') : match.url ? openMatchInsideApp(match.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => { if (match.streamUrl && /^https?:\/\//i.test(match.streamUrl)) { openMatchInsideApp(match.streamUrl); } else { Alert.alert('البث غير متاح', 'لا يتوفر رابط بث رسمي ومعتمد لهذه المباراة حالياً.'); } }}
               style={{ backgroundColor: '#00E676', borderRadius: 13, padding: 13, alignItems: 'center', marginTop: 10 }}
             >
               <Text style={{ color: '#07140B', fontWeight: '900', fontSize: 13 }}>
-                ▶ مشاهدة داخل التطبيق
+                ▶ مشاهدة البث الرسمي
               </Text>
             </TouchableOpacity>
           </View>
@@ -1996,7 +3705,7 @@ useEffect(() => {
       )}
 
       <Text style={{ color: MUTED, fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 15 }}>
-        بيانات المباريات من Fabor TV. يفتح زر التفاصيل صفحة المباراة على موقع المصدر.
+        بيانات المباريات والنتائج من API-Football. روابط البث الرسمية ستتوفر عند اعتماد مصادر مرخصة.
       </Text>
     </>
   );
@@ -2075,104 +3784,6 @@ useEffect(() => {
     }
   };
 
-  const ShararaAIPage = () => (
-    <View style={{ flex: 1, minHeight: 540 }}>
-      <Image source={require('./assets/charara-rooms/sharara-ai-cover.png')} style={{ width: '100%', height: 165, borderRadius: 18, marginBottom: 14 }} resizeMode="cover" />
-      <View style={{
-        backgroundColor: '#10251A',
-        borderRadius: 20,
-        padding: 18,
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: '#267A46',
-      }}>
-        <Text style={{ color: GREEN, fontSize: 23, fontWeight: '900', textAlign: 'center' }}>
-          ⚡ شرارة AI
-        </Text>
-        <Text style={{ color: '#FFFFFF', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
-          مساعدك الرياضي الذكي
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 11, textAlign: 'center', marginTop: 5 }}>
-          اسأل عن المباريات والنتائج والبطولات والإحصائيات
-        </Text>
-      </View>
-
-      <ScrollView
-        style={{ flex: 1, backgroundColor: '#0D1510', borderRadius: 16, padding: 12 }}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {shararaAIMessages.length === 0 ? (
-          <View style={{ alignItems: 'center', paddingVertical: 45 }}>
-            <Text style={{ fontSize: 42 }}>⚽</Text>
-            <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 16, marginTop: 12 }}>
-              مرحباً بك في شرارة AI
-            </Text>
-            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 8 }}>
-              اسأل شرارة AI وسيجيبك عن عالم كرة القدم.
-            </Text>
-            <Text style={{ color: '#D6A84B', textAlign: 'center', fontSize: 10, marginTop: 12 }}>
-              مساعدك الرياضي جاهز للمحادثة.
-            </Text>
-          </View>
-        ) : (
-          shararaAIMessages.map((item, index) => (
-            <View
-              key={index}
-              style={{
-                alignSelf: item.role === 'user' ? 'flex-start' : 'flex-end',
-                backgroundColor: item.role === 'user' ? '#153D27' : '#202B24',
-                borderRadius: 14,
-                padding: 12,
-                marginVertical: 5,
-                maxWidth: '88%',
-              }}
-            >
-              <Text style={{ color: '#FFFFFF', fontSize: 13, lineHeight: 21 }}>
-                {item.text}
-              </Text>
-            </View>
-          ))
-        )}
-      </ScrollView>
-
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 }}>
-        <TextInput
-          value={shararaAIMessage}
-          onChangeText={setShararaAIMessage}
-          placeholder="اكتب سؤالك الرياضي..."
-          placeholderTextColor={MUTED}
-          editable={!shararaAILoading}
-          multiline
-          style={{
-            flex: 1,
-            backgroundColor: '#17231B',
-            color: '#FFFFFF',
-            borderRadius: 13,
-            paddingHorizontal: 14,
-            paddingVertical: 12,
-            minHeight: 48,
-            maxHeight: 100,
-            textAlign: 'right',
-            borderWidth: 1,
-            borderColor: '#31533B',
-          }}
-        />
-        <TouchableOpacity
-          disabled={!shararaAIMessage.trim() || shararaAILoading}
-          onPress={sendShararaAIMessage}
-          style={{
-            backgroundColor: shararaAIMessage.trim() ? GREEN : '#35443A',
-            borderRadius: 13,
-            paddingHorizontal: 17,
-            paddingVertical: 15,
-          }}
-        >
-          <Text style={{ color: '#07110A', fontWeight: '900' }}>{shararaAILoading ? '...' : 'إرسال'}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   const Home = () => (
     <View style={{ paddingBottom: 25 }}>
@@ -2483,1570 +4094,7 @@ useEffect(() => {
     </View>
   );
 
-  const PredictionsPage = ({ matches = [] }) => {
-    const [predictionStates, setPredictionStates] = useState({});
-    const teamIdsCacheRef = useRef({});
 
-    const upcomingMatches = Array.isArray(matches)
-      ? matches.filter(match =>
-          match && match.home && match.away && !match.score
-        ).slice(0, 30)
-      : [];
-
-    const normalizeTeamName = value => String(value || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/\b(fc|cf|sc|ac|as)\b/g, '')
-      .replace(/[^a-z0-9]/g, '');
-
-    const resolveTeamId = async teamName => {
-      const normalized = normalizeTeamName(teamName);
-      if (!normalized) throw new Error('اسم الفريق غير صالح');
-
-      if (teamIdsCacheRef.current[normalized]) {
-        return teamIdsCacheRef.current[normalized];
-      }
-
-      const searchResponse = await fetch(
-        STATS_API_URL + 'teams/search?query=' +
-        encodeURIComponent(teamName) + '&limit=20'
-      );
-
-      if (!searchResponse.ok) {
-        throw new Error('تعذر البحث عن الفريق: ' + teamName);
-      }
-
-      const searchData = await searchResponse.json();
-      const excluded = /(women|woman|ladies|youth|reserve|u19|u20|u21|u23|ii|iii)/i;
-
-      const candidates = (searchData.teams || []).filter(team =>
-        normalizeTeamName(team.name) === normalized &&
-        !excluded.test(team.name)
-      );
-
-      if (candidates.length !== 1) {
-        throw new Error(
-          candidates.length === 0
-            ? 'لم نعثر على تطابق دقيق للفريق: ' + teamName
-            : 'اسم الفريق غير فريد، تعذر تحديد الفريق الصحيح: ' + teamName
-        );
-      }
-
-      const candidate = candidates[0];
-      const detailsResponse = await fetch(
-        STATS_API_URL + 'teams/details/' + candidate.id
-      );
-
-      if (!detailsResponse.ok) {
-        throw new Error('تعذر التحقق من بيانات الفريق: ' + teamName);
-      }
-
-      const details = await detailsResponse.json();
-      const actualName =
-        details.team?.team?.name ||
-        details.team?.name ||
-        details.team?.team_name;
-
-      if (!actualName || normalizeTeamName(actualName) !== normalized) {
-        throw new Error('تعذر تأكيد هوية الفريق: ' + teamName);
-      }
-
-      teamIdsCacheRef.current[normalized] = candidate.id;
-      return candidate.id;
-    };
-
-    const analyzeMatch = async (match, matchKey) => {
-      setPredictionStates(previous => ({
-        ...previous,
-        [matchKey]: { loading: true, result: null, error: '' }
-      }));
-
-      try {
-        const ids = await Promise.all([
-          resolveTeamId(match.home),
-          resolveTeamId(match.away)
-        ]);
-
-        if (ids[0] === ids[1]) {
-          throw new Error('تعذر التمييز بين الفريقين');
-        }
-
-        const response = await fetch(
-          STATS_API_URL + 'predictions?home=' + ids[0] +
-          '&away=' + ids[1]
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data.message || data.error || 'تعذر إجراء التحليل'
-          );
-        }
-
-        setPredictionStates(previous => ({
-          ...previous,
-          [matchKey]: {
-            loading: false,
-            result: data,
-            error: data.success ? '' : (
-              data.message || 'بيانات غير كافية لإصدار توقع موثوق'
-            )
-          }
-        }));
-      } catch (error) {
-        setPredictionStates(previous => ({
-          ...previous,
-          [matchKey]: {
-            loading: false,
-            result: null,
-            error: error.message || 'حدث خطأ أثناء التحليل'
-          }
-        }));
-      }
-    };
-
-    return (
-      <View style={{ paddingBottom: 24 }}>
-        <View style={{
-          backgroundColor: '#101A14',
-          borderRadius: 20,
-          borderWidth: 1,
-          borderColor: '#245235',
-          padding: 20,
-          marginBottom: 16,
-        }}>
-          <Text style={{
-            color: GREEN,
-            fontSize: 24,
-            fontWeight: '900',
-            textAlign: 'right',
-          }}>
-            📊 توقعات شرارة
-          </Text>
-          <Text style={{
-            color: MUTED,
-            fontSize: 13,
-            textAlign: 'right',
-            marginTop: 9,
-            lineHeight: 22,
-          }}>
-            تحليل إحصائي يعتمد على آخر خمس مباريات وأداء الفريقين داخل وخارج الملعب.
-          </Text>
-        </View>
-
-        <View style={{
-          backgroundColor: '#17251B',
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: '#31543A',
-          padding: 15,
-          marginBottom: 18,
-        }}>
-          <Text style={{
-            color: '#FFD166',
-            fontSize: 13,
-            fontWeight: '900',
-            textAlign: 'right',
-          }}>
-            ⚠️ التوقعات تقديرية وليست ضماناً للنتيجة
-          </Text>
-          <Text style={{
-            color: '#D0DAD2',
-            fontSize: 12,
-            textAlign: 'right',
-            marginTop: 7,
-            lineHeight: 21,
-          }}>
-            لا نعرض توقعاً عند نقص البيانات أو تعذر التأكد من هوية الفريق.
-          </Text>
-        </View>
-
-        <Text style={{
-          color: '#FFFFFF',
-          fontSize: 17,
-          fontWeight: '900',
-          textAlign: 'right',
-          marginBottom: 12,
-        }}>
-          المباريات المتاحة للتحليل
-        </Text>
-
-        {upcomingMatches.length > 0 ? (
-          upcomingMatches.map((match, index) => {
-            const matchKey = String(
-              match.apiFootballFixtureId || match.url || index
-            );
-            const prediction = predictionStates[matchKey] || {};
-
-            return (
-              <View
-                key={matchKey}
-                style={{
-                  backgroundColor: '#111A15',
-                  borderRadius: 14,
-                  borderWidth: 1,
-                  borderColor: '#294735',
-                  padding: 15,
-                  marginBottom: 10,
-                }}
-              >
-                <Text style={{
-                  color: MUTED,
-                  fontSize: 11,
-                  textAlign: 'center',
-                  marginBottom: 10,
-                }}>
-                  {match.league || 'بطولة أخرى'}
-                </Text>
-
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 14,
-                    fontWeight: '900',
-                    flex: 1,
-                    textAlign: 'left',
-                  }}>
-                    {match.home}
-                  </Text>
-                  <Text style={{
-                    color: GREEN,
-                    fontSize: 12,
-                    fontWeight: '900',
-                    marginHorizontal: 10,
-                  }}>
-                    VS
-                  </Text>
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 14,
-                    fontWeight: '900',
-                    flex: 1,
-                    textAlign: 'right',
-                  }}>
-                    {match.away}
-                  </Text>
-                </View>
-
-                <Text style={{
-                  color: MUTED,
-                  fontSize: 11,
-                  textAlign: 'center',
-                  marginTop: 10,
-                }}>
-                  {match.matchDate || ''} {match.time || ''}
-                </Text>
-
-                <TouchableOpacity
-                  disabled={!!prediction.loading}
-                  onPress={() => analyzeMatch(match, matchKey)}
-                  style={{
-                    backgroundColor: prediction.loading ? '#26352B' : '#153D27',
-                    padding: 13,
-                    borderRadius: 10,
-                    marginTop: 13,
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text style={{
-                    color: prediction.loading ? MUTED : GREEN,
-                    fontWeight: '900',
-                    fontSize: 13,
-                  }}>
-                    {prediction.loading ? 'جارٍ تحليل المباراة...' : '📊 حلّل المباراة'}
-                  </Text>
-                </TouchableOpacity>
-
-                {prediction.error ? (
-                  <Text style={{
-                    color: '#FFD166',
-                    fontSize: 12,
-                    textAlign: 'center',
-                    marginTop: 12,
-                    lineHeight: 20,
-                  }}>
-                    {prediction.error}
-                  </Text>
-                ) : null}
-
-                {prediction.result?.success ? (
-                  <View style={{
-                    backgroundColor: '#17251B',
-                    borderRadius: 12,
-                    padding: 13,
-                    marginTop: 12,
-                    borderWidth: 1,
-                    borderColor: '#31543A',
-                  }}>
-                    <Text style={{
-                      color: GREEN,
-                      fontSize: 16,
-                      fontWeight: '900',
-                      textAlign: 'center',
-                    }}>
-                      النتيجة التقديرية: {prediction.result.predicted_score}
-                    </Text>
-
-                    <View style={{
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      marginTop: 14,
-                    }}>
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                          {prediction.result.probabilities?.away_win}%
-                        </Text>
-                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                          فوز الضيف
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                          {prediction.result.probabilities?.draw}%
-                        </Text>
-                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                          تعادل
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                          {prediction.result.probabilities?.home_win}%
-                        </Text>
-                        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                          فوز المضيف
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={{
-                      color: MUTED,
-                      fontSize: 11,
-                      textAlign: 'center',
-                      marginTop: 12,
-                    }}>
-                      عينة التحليل: {prediction.result.sample_size?.home_team} مباريات للمضيف و{prediction.result.sample_size?.away_team} للضيف
-                    </Text>
-                    <Text style={{
-                      color: '#FFD166',
-                      fontSize: 11,
-                      textAlign: 'center',
-                      marginTop: 7,
-                    }}>
-                      {prediction.result.note || 'توقع تقديري وليس ضماناً للنتيجة'}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            );
-          })
-        ) : (
-          <View style={{
-            backgroundColor: '#111A15',
-            borderRadius: 14,
-            padding: 22,
-            alignItems: 'center',
-          }}>
-            <Text style={{ fontSize: 30 }}>⚽</Text>
-            <Text style={{
-              color: MUTED,
-              textAlign: 'center',
-              marginTop: 10,
-            }}>
-              لا توجد مباريات قادمة متاحة حالياً.
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const OtherPage = () => {
-    const [selectedLeague, setSelectedLeague] = useState('دوري أبطال أوروبا');
-
-    const [standings, setStandings] = useState([]);
-    const [standingsLoading, setStandingsLoading] = useState(false);
-    const [standingsError, setStandingsError] = useState('');
-    const [leagueFixtures, setLeagueFixtures] = useState({ upcoming: [], results: [] });
-    const [leagueFixturesLoading, setLeagueFixturesLoading] = useState(false);
-    const [leagueFixturesError, setLeagueFixturesError] = useState('');
-    const [selectedTeam, setSelectedTeam] = useState(null);
-    const [teamDetails, setTeamDetails] = useState(null);
-    const [teamLoading, setTeamLoading] = useState(false);
-    const [teamError, setTeamError] = useState('');
-
-    const [selectedPlayer, setSelectedPlayer] = useState(null);
-    const [playerDetails, setPlayerDetails] = useState(null);
-    const [playerLoading, setPlayerLoading] = useState(false);
-    const [playerError, setPlayerError] = useState('');
-
-    const loadPlayerDetails = async (player) => {
-      if (!player?.slug) {
-        setPlayerError('لا تتوفر بيانات هذا اللاعب.');
-        return;
-      }
-
-      setSelectedPlayer(player);
-      setPlayerDetails(null);
-      setPlayerError('');
-      setPlayerLoading(true);
-
-      try {
-        const response = await fetch(
-          `https://charara-sport-standings-api.hasnnoui73.workers.dev/players/slug/${encodeURIComponent(player.slug)}`
-        );
-        const payload = await response.json();
-
-        if (!response.ok || !payload.success || !payload.player) {
-          throw new Error('Player details request failed');
-        }
-
-        setPlayerDetails({
-          ...payload.player,
-          team: payload.team,
-          league: payload.league,
-          season: payload.season,
-          career: payload.career,
-          matches: payload.matches || [],
-        });
-      } catch (error) {
-        setPlayerError('تعذر تحميل ملف اللاعب حالياً. حاول لاحقاً.');
-      } finally {
-        setPlayerLoading(false);
-      }
-    };
-
-    const loadTeamDetails = async (team) => {
-      if (!team) return;
-
-      setSelectedTeam(team);
-      setTeamDetails(null);
-      setTeamError('');
-      setTeamLoading(true);
-
-      if (!team.slug) {
-        setTeamError('لا تتوفر بيانات قائمة هذا المنتخب في مصدر البيانات الحالي.');
-        setTeamLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `https://charara-sport-standings-api.hasnnoui73.workers.dev/teams/slug/${encodeURIComponent(team.slug)}`
-        );
-        const payload = await response.json();
-
-        if (!response.ok || !payload.success || !payload.team) {
-          throw new Error('Team details request failed');
-        }
-
-        setTeamDetails(payload);
-      } catch (error) {
-        setTeamError('تعذر تحميل مباريات المنتخب حالياً. حاول مرة أخرى.');
-      } finally {
-        setTeamLoading(false);
-      }
-    };
-
-    const leagueIds = {
-      'كأس أمم إفريقيا': '123',
-      'دوري أبطال أوروبا': '18',
-      'الدوري الإنجليزي': '24',
-      'الدوري الإسباني': '1',
-      'الدوري الألماني': '2',
-      'الدوري الإيطالي': '3',
-      'الدوري الفرنسي': '9',
-      'دوري أبطال إفريقيا': '68116',
-      'كأس الكونفدرالية الإفريقية': '68117',
-      'تصفيات أمم إفريقيا': '72',
-      'الدوري الأوروبي': '22',
-      'دوري المؤتمر الأوروبي': '23',
-      'كأس العالم': '14022',
-      'تصفيات كأس العالم الأوروبية': '74',
-      'تصفيات كأس العالم لأمريكا الشمالية': '104',
-      'الدوري النيجيري': '66',
-      'الدوري الجنوب إفريقي': '92',
-      'دوري أبطال آسيا للنخبة': '68084',
-      'دوري أبطال آسيا 2': '68085',
-    };
-
-    useEffect(() => {
-      let active = true;
-      setStandings([]);
-      setStandingsError('');
-      setStandingsLoading(true);
-
-      const isAfcon = false; // كأس إفريقيا تستخدم SportAPI Worker
-      const isAlgerian = selectedLeague === 'الدوري الجزائري';
-      const leagueId = leagueIds[selectedLeague];
-
-      if (!isAfcon && !isAlgerian && !leagueId) {
-        setStandingsLoading(false);
-        setStandingsError('الترتيب غير متوفر لهذه البطولة من مصدر البيانات الحالي.');
-        return () => { active = false; };
-      }
-
-      const request = isAfcon
-        ? fetch('https://site.api.espn.com/apis/v2/sports/soccer/caf.nations/standings')
-            .then(async response => {
-              const payload = await response.json();
-              if (!response.ok || !Array.isArray(payload.children)) {
-                throw new Error('AFCON standings request failed');
-              }
-
-              const rows = payload.children.flatMap(group => {
-                const entries = group.standings?.entries || [];
-                const groupRows = entries.map((entry, index) => {
-                  const stats = Object.fromEntries(
-                    (entry.stats || []).map(item => [
-                      item.name,
-                      item.displayValue ?? item.value ?? '0'
-                    ])
-                  );
-
-                  const number = name => {
-                    const value = Number.parseFloat(
-                      String(stats[name] ?? '0').replace('+', '')
-                    );
-                    return Number.isFinite(value) ? value : 0;
-                  };
-
-                  return {
-                    group: group.name,
-                    position: number('rank') || index + 1,
-                    team: {
-                      id: entry.team?.id,
-                      name: entry.team?.displayName || entry.team?.name || '—',
-                      short_name: entry.team?.shortDisplayName || entry.team?.abbreviation || entry.team?.name || '—',
-                    },
-                    played: number('gamesPlayed'),
-                    won: number('wins'),
-                    draw: number('ties'),
-                    lost: number('losses'),
-                    goals_for: number('pointsFor'),
-                    goals_against: number('pointsAgainst'),
-                    goal_difference: number('pointDifferential'),
-                    points: number('points'),
-                  };
-                });
-
-                return groupRows.sort((a, b) => a.position - b.position);
-              });
-
-              if (!rows.length) throw new Error('No AFCON standings');
-              return rows;
-            })
-        : isAlgerian
-          ? fetch('https://charara-standings-api.hasnnoui73.workers.dev/standings?league=186&season=2024')
-              .then(async response => {
-                const payload = await response.json();
-                const groups = payload.data?.response || [];
-                const entries = groups.flatMap(item => item.league?.standings || []);
-
-                if (!response.ok || !payload.success || !entries.length) {
-                  throw new Error('Algerian standings unavailable');
-                }
-
-                return entries.map(row => ({
-                  group: 'الدوري الجزائري • موسم 2024',
-                  position: row.rank,
-                  team: {
-                    id: row.team?.id,
-                    name: row.team?.name || '—',
-                    short_name: row.team?.name || '—',
-                  },
-                  played: row.all?.played ?? 0,
-                  won: row.all?.win ?? 0,
-                  draw: row.all?.draw ?? 0,
-                  lost: row.all?.lose ?? 0,
-                  goals_for: row.all?.goals?.for ?? 0,
-                  goals_against: row.all?.goals?.against ?? 0,
-                  goal_difference: row.goalsDiff ?? 0,
-                  points: row.points ?? 0,
-                }));
-              })
-          : fetch(`https://charara-sport-standings-api.hasnnoui73.workers.dev/standings/${leagueId}`)
-              .then(async response => {
-              const payload = await response.json();
-              if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
-                throw new Error('Standings request failed');
-              }
-              let rows = payload.data;
-
-              const espnLeagueCodes = {
-            '123': 'caf.nations',
-            '18': 'uefa.champions',
-            '24': 'eng.1',
-            '1': 'esp.1',
-            '2': 'ger.1',
-            '3': 'ita.1',
-            '9': 'fra.1',
-            '22': 'uefa.europa',
-            '23': 'uefa.europa.conf',
-          };
-
-          const espnCode = espnLeagueCodes[String(leagueId)];
-
-          if (espnCode) {
-            try {
-              const espnResponse = await fetch(
-                'https://site.api.espn.com/apis/v2/sports/soccer/' +
-                espnCode + '/standings'
-              );
-
-              if (!espnResponse.ok) {
-                throw new Error('ESPN logos request failed');
-              }
-
-              const espnPayload = await espnResponse.json();
-              const logoMap = new Map();
-
-              const normalizeName = value => {
-                const name = String(value || '')
-                  .normalize('NFD')
-                  .replace(/[\u0300-\u036f]/g, '')
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]/g, '');
-
-                const aliases = {
-                  psg: 'parissaintgermain',
-                  parissg: 'parissaintgermain',
-                  internazionale: 'intermilan',
-                  inter: 'intermilan',
-                  manutd: 'manchesterunited',
-                  manunited: 'manchesterunited',
-                  brighton: 'brightonandhovealbion',
-                  leverkusen: 'bayerleverkusen',
-                };
-
-                return aliases[name] || name;
-              };
-
-              (espnPayload.children || []).forEach(group => {
-                (group.standings?.entries || []).forEach(entry => {
-                  const name = normalizeName(
-                    entry.team?.displayName || entry.team?.name
-                  );
-                  const logo =
-                    entry.team?.logos?.[0]?.href ||
-                    entry.team?.logo ||
-                    '';
-                  if (name && logo) logoMap.set(name, logo);
-                });
-              });
-
-              rows = rows.map(row => {
-                const name = normalizeName(row.team?.name);
-                return {
-                  ...row,
-                  team: {
-                    ...row.team,
-                    logo: logoMap.get(name) || row.team?.logo || '',
-                  },
-                };
-              });
-            } catch (error) {
-              console.log('Team logos unavailable:', error.message);
-            }
-          }
-
-          return rows;
-            });
-
-      request
-        .then(data => {
-          if (active) setStandings(data);
-        })
-        .catch(() => {
-          if (active) {
-            setStandingsError('تعذر تحميل الترتيب حالياً. حاول مرة أخرى لاحقاً.');
-          }
-        })
-        .finally(() => {
-          if (active) setStandingsLoading(false);
-        });
-
-      return () => { active = false; };
-    }, [selectedLeague]);
-
-
-    useEffect(() => {
-      const leagueId = leagueIds[selectedLeague];
-      if (!leagueId) return;
-
-      let active = true;
-
-      const refreshStandings = async () => {
-        try {
-          const response = await fetch(
-            AFCON_API_URL + 'standings/' + leagueId
-          );
-          const payload = await response.json();
-
-          if (active && response.ok && payload.success && Array.isArray(payload.data)) {
-            setStandings(current => payload.data.map(row => {
-              const previous = current.find(item =>
-                String(item.team?.id) === String(row.team?.id)
-              );
-
-              return {
-                ...row,
-                team: {
-                  ...row.team,
-                  logo: row.team?.logo || previous?.team?.logo || '',
-                },
-              };
-            }));
-            setStandingsError('');
-          }
-        } catch (error) {
-          console.log('Standings refresh error:', error.message);
-        }
-      };
-
-      const interval = setInterval(refreshStandings, 5 * 60 * 1000);
-
-      return () => {
-        active = false;
-        clearInterval(interval);
-      };
-    }, [selectedLeague]);
-
-    useEffect(() => {
-      const leagueId = leagueIds[selectedLeague];
-      let active = true;
-
-      setLeagueFixtures({ upcoming: [], results: [] });
-      setLeagueFixturesError('');
-
-      if (!leagueId) {
-        setLeagueFixturesLoading(false);
-        setLeagueFixturesError('مواعيد الدوري الجزائري غير متاحة من المصدر الحالي.');
-        return () => { active = false; };
-      }
-
-      const loadLeagueFixtures = async () => {
-        setLeagueFixturesLoading(true);
-        try {
-          const response = await fetch(
-            AFCON_API_URL + 'league-fixtures/' + leagueId
-          );
-          const payload = await response.json();
-
-          if (!response.ok || !payload.success || !payload.data) {
-            throw new Error('League fixtures request failed');
-          }
-
-          if (active) {
-            setLeagueFixtures({
-              upcoming: Array.isArray(payload.data.upcoming_fixtures)
-                ? payload.data.upcoming_fixtures : [],
-              results: Array.isArray(payload.data.recent_results)
-                ? payload.data.recent_results : [],
-            });
-            setLeagueFixturesError('');
-          }
-        } catch (error) {
-          if (active) {
-            setLeagueFixtures({ upcoming: [], results: [] });
-            setLeagueFixturesError('تعذر تحميل مباريات البطولة حالياً. حاول لاحقاً.');
-          }
-        } finally {
-          if (active) setLeagueFixturesLoading(false);
-        }
-      };
-
-      loadLeagueFixtures();
-      const interval = setInterval(loadLeagueFixtures, 5 * 60 * 1000);
-
-      return () => {
-        active = false;
-        clearInterval(interval);
-      };
-    }, [selectedLeague]);
-
-    const leagues = [
-      { name: 'دوري أبطال أوروبا', country: 'أوروبا', icon: '🏆', color: '#D9B45B' },
-      { name: 'الدوري الإنجليزي', country: 'إنجلترا', icon: '🏴', color: '#A78BFA' },
-      { name: 'الدوري الإسباني', country: 'إسبانيا', icon: '🇪🇸', color: '#F87171' },
-      { name: 'الدوري الألماني', country: 'ألمانيا', icon: '🇩🇪', color: '#FBBF24' },
-      { name: 'الدوري الإيطالي', country: 'إيطاليا', icon: '🇮🇹', color: '#60A5FA' },
-      { name: 'الدوري الفرنسي', country: 'فرنسا', icon: '🇫🇷', color: '#818CF8' },
-      { name: 'الدوري الجزائري', country: 'الجزائر • موسم 2024', icon: '🇩🇿', color: '#34D399' },
-      { name: 'الدوري الأوروبي', country: 'أوروبا', icon: '🏆', color: '#F97316' },
-      { name: 'دوري المؤتمر الأوروبي', country: 'أوروبا', icon: '🏆', color: '#A3A3A3' },
-      { name: 'دوري أبطال إفريقيا', country: 'إفريقيا', icon: '🏆', color: '#FBBF24' },
-      { name: 'كأس الكونفدرالية الإفريقية', country: 'إفريقيا', icon: '🏆', color: '#D97706' },
-      { name: 'تصفيات أمم إفريقيا', country: 'إفريقيا', icon: '🌍', color: '#34D399' },
-      { name: 'كأس أمم إفريقيا', country: 'إفريقيا • نسخة 2025', icon: '🏆', color: '#FBBF24' },
-      { name: 'كأس العالم', country: 'العالم • FIFA', icon: '🌍', color: '#34D399' },
-      { name: 'تصفيات كأس العالم الأوروبية', country: 'أوروبا', icon: '🌍', color: '#60A5FA' },
-      { name: 'تصفيات كأس العالم لأمريكا الشمالية', country: 'أمريكا الشمالية والوسطى', icon: '🌎', color: '#F87171' },
-      { name: 'الدوري النيجيري', country: 'نيجيريا • إفريقيا', icon: '🇳🇬', color: '#34D399' },
-      { name: 'الدوري الجنوب إفريقي', country: 'جنوب إفريقيا', icon: '🇿🇦', color: '#FBBF24' },
-      { name: 'دوري أبطال آسيا للنخبة', country: 'آسيا', icon: '🏆', color: '#60A5FA' },
-      { name: 'دوري أبطال آسيا 2', country: 'آسيا', icon: '🏆', color: '#A78BFA' },
-    ];
-
-    if (tab === 'البطولات') {
-      return (
-        <View style={{ gap: 18, paddingBottom: 20 }}>
-          <View style={{
-            backgroundColor: '#0D1D13',
-            borderWidth: 1.5,
-            borderColor: '#28613C',
-            borderRadius: 25,
-            padding: 23,
-          }}>
-            <Text style={{ color: GREEN, fontSize: 13, fontWeight: 'bold', textAlign: 'right' }}>
-              CHARARA SPORT • LEAGUES
-            </Text>
-            <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: 'bold', textAlign: 'right', marginTop: 10 }}>
-              عالم البطولات
-            </Text>
-            <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 7, lineHeight: 22 }}>
-              اختر البطولة لمتابعة معلوماتها والترتيب عند توفر البيانات الرسمية.
-            </Text>
-          </View>
-
-          <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right' }}>
-  اختر البطولة
-</Text>
-
-<ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  contentContainerStyle={{
-    flexDirection: 'row-reverse',
-    gap: 10,
-    paddingVertical: 8,
-  }}
->
-  {leagues.map((league) => {
-    const active = selectedLeague === league.name;
-    return (
-      <TouchableOpacity
-        key={league.name}
-        onPress={() => setSelectedLeague(league.name)}
-        activeOpacity={0.8}
-        style={{
-          width: 165,
-          minHeight: 125,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: active ? '#173522' : '#101713',
-          borderWidth: active ? 2 : 1,
-          borderColor: active ? GREEN : '#26372D',
-          borderRadius: 20,
-          padding: 14,
-        }}
-      >
-        <Text style={{ fontSize: 27 }}>{league.icon}</Text>
-        <Text
-          numberOfLines={2}
-          style={{
-            color: active ? GREEN : '#FFFFFF',
-            fontSize: 13,
-            fontWeight: 'bold',
-            textAlign: 'center',
-            marginTop: 8,
-          }}
-        >
-          {league.name}
-        </Text>
-        <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-          {league.country}
-        </Text>
-      </TouchableOpacity>
-    );
-  })}
-</ScrollView>
-          <View style={{
-            backgroundColor: '#0F1C14',
-            borderWidth: 1.5,
-            borderColor: '#28613C',
-            borderRadius: 23,
-            padding: 20,
-            marginTop: 6,
-          }}>
-            <Text style={{ color: GREEN, fontSize: 12, fontWeight: 'bold', textAlign: 'right' }}>
-              البطولة المختارة
-            </Text>
-            <Text style={{ color: '#FFFFFF', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 9 }}>
-              {selectedLeague}
-            </Text>
-            <View style={{
-              backgroundColor: '#111F16',
-              borderRadius: 16,
-              padding: 16,
-              marginTop: 16,
-              borderWidth: 1,
-              borderColor: '#263F2E',
-            }}>
-              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', textAlign: 'right' }}>
-                جدول الترتيب
-              </Text>
-              {standingsLoading ? (
-                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
-                  جاري تحميل الترتيب...
-                </Text>
-              ) : standingsError ? (
-                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12, lineHeight: 23 }}>
-                  {standingsError}
-                </Text>
-              ) : standings.length > 0 ? (
-                <View style={{ marginTop: 14 }}>
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: '#203329',
-                    paddingVertical: 11,
-                    paddingHorizontal: 5,
-                    borderRadius: 9,
-                  }}>
-                    <Text style={{ color: GREEN, width: 32, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>م</Text>
-                    <Text style={{ color: GREEN, flex: 1, textAlign: 'right', fontSize: 11, fontWeight: '900' }}>الفريق</Text>
-                    <Text style={{ color: GREEN, width: 30, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>لعب</Text>
-                    {selectedLeague === 'تصفيات أمم إفريقيا' && <>
-                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ف</Text>
-                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>ت</Text>
-                      <Text style={{ color: GREEN, width: 23, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>خ</Text>
-                    </>}
-                    <Text style={{ color: GREEN, width: 34, textAlign: 'center', fontSize: 10, fontWeight: '900' }}>فارق</Text>
-                    <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 11, fontWeight: '900' }}>نقاط</Text>
-                  </View>
-
-                  {standings.map((row, index) => (
-                    <View key={`${row.group || selectedLeague}-${row.team?.id || row.position || index}`}>
-                      {row.group && (index === 0 || standings[index - 1]?.group !== row.group) ? (
-                        <Text style={{ color: '#FBBF24', fontSize: 14, fontWeight: '900', textAlign: 'right', marginTop: 16, marginBottom: 5 }}>
-                          {row.group}
-                        </Text>
-                      ) : null}
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingVertical: 13,
-                          paddingHorizontal: 5,
-                          borderBottomWidth: 1,
-                          borderBottomColor: '#26372D',
-                        }}
-                      >
-                        <Text style={{ color: MUTED, width: 32, textAlign: 'center', fontSize: 12 }}>
-                          {row.position ?? index + 1}
-                        </Text>
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (row.team) {
-                              loadTeamDetails(row.team);
-                            }
-                          }}
-                          activeOpacity={0.7}
-                          style={{ flex: 1 }}
-                        >
-                            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
-                              <TeamLogo uri={row.team?.logo} size={24} style={{ marginLeft: 8 }} />
-                              <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
-                                {row.team?.short_name || row.team?.name || '—'}
-                              </Text>
-                            </View>
-                        </TouchableOpacity>
-                        <Text style={{ color: '#FFFFFF', width: 30, textAlign: 'center', fontSize: 11 }}>
-                          {row.played ?? 0}
-                        </Text>
-                        {selectedLeague === 'تصفيات أمم إفريقيا' && <>
-                          <Text style={{ color: '#34D399', width: 23, textAlign: 'center', fontSize: 11 }}>{row.won ?? 0}</Text>
-                          <Text style={{ color: '#FBBF24', width: 23, textAlign: 'center', fontSize: 11 }}>{row.draw ?? 0}</Text>
-                          <Text style={{ color: '#F87171', width: 23, textAlign: 'center', fontSize: 11 }}>{row.lost ?? 0}</Text>
-                        </>}
-                        <Text style={{ color: '#FFFFFF', width: 34, textAlign: 'center', fontSize: 11 }}>
-                          {row.goal_difference > 0 ? `+${row.goal_difference}` : (row.goal_difference ?? 0)}
-                        </Text>
-                        <Text style={{ color: GREEN, width: 38, textAlign: 'center', fontSize: 13, fontWeight: '900' }}>
-                          {row.points ?? 0}
-                        </Text>
-                      </View>
-                      {selectedLeague === 'تصفيات أمم إفريقيا' && Array.isArray(row.form) && row.form.length > 0 && (
-                        <View style={{ alignItems: 'flex-end', paddingHorizontal: 8, paddingBottom: 9 }}>
-                          <Text style={{ color: MUTED, fontSize: 10, marginBottom: 5 }}>آخر النتائج</Text>
-                          <View style={{ flexDirection: 'row', gap: 5 }}>
-                            {row.form.slice(-5).map((item, formIndex) => {
-                              const result = item.result;
-                              const resultColor = result === 'W' ? '#34D399' : result === 'D' ? '#FBBF24' : '#F87171';
-                              const resultLabel = result === 'W' ? 'ف' : result === 'D' ? 'ت' : 'خ';
-                              return (
-                                <View key={item.date || formIndex} style={{
-                                  width: 23,
-                                  height: 23,
-                                  borderRadius: 6,
-                                  backgroundColor: resultColor + '22',
-                                  borderWidth: 1,
-                                  borderColor: resultColor,
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}>
-                                  <Text style={{ color: resultColor, fontSize: 11, fontWeight: '900' }}>{resultLabel}</Text>
-                                </View>
-                              );
-                            })}
-                          </View>
-                        </View>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={{ color: MUTED, fontSize: 13, textAlign: 'right', marginTop: 12 }}>
-                  لا توجد بيانات ترتيب متاحة حالياً.
-                </Text>
-              )}
-            </View>
-
-            <View style={{
-              backgroundColor: '#111A15',
-              borderWidth: 1,
-              borderColor: '#245235',
-              borderRadius: 14,
-              padding: 14,
-              marginTop: 15,
-            }}>
-              <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
-                مباريات البطولة
-              </Text>
-
-              {leagueFixturesLoading ? (
-                <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12 }}>
-                  جاري تحميل مباريات البطولة...
-                </Text>
-              ) : leagueFixturesError ? (
-                <Text style={{ color: MUTED, textAlign: 'right', marginTop: 12, lineHeight: 22 }}>
-                  {leagueFixturesError}
-                </Text>
-              ) : (
-                <>
-                  <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
-                    المباريات القادمة
-                  </Text>
-                  {leagueFixtures.upcoming.length ? (
-                    leagueFixtures.upcoming.slice(0, 10).map((match, index) => (
-                      <View key={String(match.id || index)} style={{
-                        backgroundColor: '#19251E',
-                        borderRadius: 9,
-                        padding: 11,
-                        marginBottom: 7,
-                      }}>
-                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
-                          {match.date || match.datetime || '—'} • {match.stage || ''}
-                        </Text>
-                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
-                          {match.home_team || '—'} ضد {match.away_team || '—'}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
-                      لا توجد مباريات قادمة مسجلة حالياً.
-                    </Text>
-                  )}
-
-                  <Text style={{ color: GREEN, fontWeight: '900', textAlign: 'right', marginTop: 15, marginBottom: 9 }}>
-                    آخر النتائج
-                  </Text>
-                  {leagueFixtures.results.length ? (
-                    leagueFixtures.results.slice(0, 10).map((match, index) => (
-                      <View key={String(match.id || index)} style={{
-                        backgroundColor: '#19251E',
-                        borderRadius: 9,
-                        padding: 11,
-                        marginBottom: 7,
-                      }}>
-                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
-                          {match.date || '—'} • {match.stage || ''}
-                        </Text>
-                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
-                          {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
-                      لا توجد نتائج سابقة مسجلة حالياً.
-                    </Text>
-                  )}
-                </>
-              )}
-            </View>
-
-            {['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) && selectedTeam && (
-              <View style={{
-                backgroundColor: '#111A15',
-                borderWidth: 1,
-                borderColor: '#245235',
-                borderRadius: 15,
-                padding: 14,
-                marginTop: 15,
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedTeam(null);
-                      setTeamDetails(null);
-                      setTeamError('');
-                    }}
-                    style={{ padding: 7 }}
-                  >
-                    <Text style={{ color: '#F87171', fontSize: 13, fontWeight: 'bold' }}>إغلاق ✕</Text>
-                  </TouchableOpacity>
-                  <Text style={{ color: GREEN, fontSize: 17, fontWeight: '900', textAlign: 'right', flex: 1 }}>
-                    {teamDetails?.team?.name || selectedTeam.name || selectedTeam.short_name}
-                  </Text>
-                </View>
-
-                {teamDetails?.team?.coach_name ? (
-                  <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 5 }}>
-                    المدرب: {teamDetails.team.coach_name}
-                  </Text>
-                ) : null}
-
-                {teamLoading ? (
-                  <Text style={{ color: MUTED, textAlign: 'right', marginTop: 15 }}>
-                    جاري تحميل مباريات المنتخب...
-                  </Text>
-                ) : teamError ? (
-                  <Text style={{ color: '#F87171', textAlign: 'right', marginTop: 15 }}>
-                    {teamError}
-                  </Text>
-                ) : teamDetails ? (
-                  <>
-                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 18, marginBottom: 9 }}>
-                      المباريات السابقة
-                    </Text>
-                    {teamDetails.results?.length ? teamDetails.results.map((match, index) => (
-                      <View key={match.id || index} style={{
-                        backgroundColor: '#19251E',
-                        borderRadius: 9,
-                        padding: 11,
-                        marginBottom: 7,
-                      }}>
-                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
-                          {match.date || '—'} • {match.league_name || ''}
-                        </Text>
-                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
-                          {match.home_team}  {match.home_score ?? '—'} - {match.away_score ?? '—'}  {match.away_team}
-                        </Text>
-                      </View>
-                    )) : (
-                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات سابقة.</Text>
-                    )}
-
-                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 15, marginBottom: 9 }}>
-                      المباريات القادمة
-                    </Text>
-                    {teamDetails.upcoming?.length ? teamDetails.upcoming.map((match, index) => (
-                      <View key={match.id || index} style={{
-                        backgroundColor: '#19251E',
-                        borderRadius: 9,
-                        padding: 11,
-                        marginBottom: 7,
-                      }}>
-                        <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10 }}>
-                          {match.date || '—'} • {match.league_name || ''}
-                        </Text>
-                        <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 13, fontWeight: 'bold', marginTop: 7 }}>
-                          {match.home_team}  ضد  {match.away_team}
-                        </Text>
-                        <Text style={{ color: GREEN, textAlign: 'center', fontSize: 11, marginTop: 5 }}>
-                          {match.datetime || match.status || ''}
-                        </Text>
-                      </View>
-                    )) : (
-                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا توجد مباريات قادمة حالياً.</Text>
-                    )}
-
-                    <Text style={{ color: GREEN, textAlign: 'right', fontWeight: '900', marginTop: 20, marginBottom: 10 }}>
-                      قائمة لاعبي المنتخب ({teamDetails.squad?.length || 0})
-                    </Text>
-                    {teamDetails.squad?.length ? teamDetails.squad.map((player, index) => (
-                      <TouchableOpacity
-                        key={player.slug || index}
-                        activeOpacity={0.8}
-                        onPress={() => loadPlayerDetails(player)}
-                        style={{
-                          backgroundColor: '#19251E',
-                          borderRadius: 9,
-                          padding: 11,
-                          marginBottom: 7,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                      >
-                        <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
-                          #{player.jersey_number ?? '—'}
-                        </Text>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 13, fontWeight: 'bold' }}>
-                            {player.full_name || 'لاعب'}
-                          </Text>
-                          <Text style={{ color: MUTED, textAlign: 'right', fontSize: 11, marginTop: 4 }}>
-                            {player.position === 'Goalkeeper' ? 'حارس مرمى' :
-                             player.position === 'Defender' ? 'مدافع' :
-                             player.position === 'Midfielder' ? 'وسط ميدان' :
-                             player.position === 'Attacker' || player.position === 'Forward' ? 'مهاجم' :
-                             player.position || 'غير محدد'}
-                          </Text>
-                          <Text style={{ color: GREEN, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
-                            اضغط لعرض ملف اللاعب
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    )) : (
-                      <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>
-                        لا تتوفر قائمة اللاعبين حالياً.
-                      </Text>
-                    )}
-
-                    {selectedPlayer ? (
-                      <View style={{
-                        backgroundColor: '#19251E',
-                        borderColor: '#245235',
-                        borderWidth: 1,
-                        borderRadius: 12,
-                        padding: 14,
-                        marginTop: 12,
-                      }}>
-                        <TouchableOpacity
-                          onPress={() => {
-                            setSelectedPlayer(null);
-                            setPlayerDetails(null);
-                            setPlayerError('');
-                          }}
-                          style={{ alignSelf: 'flex-start', padding: 6 }}
-                        >
-                          <Text style={{ color: GREEN, fontWeight: '900' }}>إغلاق ✕</Text>
-                        </TouchableOpacity>
-
-                        {playerLoading ? (
-                          <Text style={{ color: MUTED, textAlign: 'center', padding: 18 }}>
-                            جارٍ تحميل ملف اللاعب...
-                          </Text>
-                        ) : playerError ? (
-                          <Text style={{ color: '#FF8A80', textAlign: 'center', padding: 12 }}>
-                            {playerError}
-                          </Text>
-                        ) : playerDetails ? (
-                          <>
-                            {playerDetails.photo_url ? (
-                              <Image
-                                source={{ uri: playerDetails.photo_url }}
-                                style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B' }}
-                                resizeMode="cover"
-                              />
-                            ) : (
-                              <View style={{ width: 110, height: 110, borderRadius: 55, alignSelf: 'center', marginBottom: 12, backgroundColor: '#26352B', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: GREEN }}>
-                                <Text style={{ color: GREEN, fontSize: 38, fontWeight: '900' }}>
-                                  {(playerDetails.full_name || selectedPlayer.full_name || '?').charAt(0)}
-                                </Text>
-                                <Text style={{ color: MUTED, fontSize: 9, marginTop: 3 }}>لا توجد صورة</Text>
-                              </View>
-                            )}
-
-                            <Text style={{ color: GREEN, textAlign: 'center', fontSize: 17, fontWeight: '900' }}>
-                              {playerDetails.full_name || playerDetails.name || selectedPlayer.full_name}
-                            </Text>
-                            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 12, marginTop: 6 }}>
-                              {playerDetails.position || selectedPlayer.position || 'المركز غير متوفر'}
-                            </Text>
-                            <Text style={{ color: '#FFFFFF', textAlign: 'center', fontSize: 12, marginTop: 8 }}>
-                              {playerDetails.team?.full_name || 'النادي غير متوفر'}
-                            </Text>
-                            <Text style={{ color: MUTED, textAlign: 'center', fontSize: 11, marginTop: 4 }}>
-                              {playerDetails.league?.name || 'البطولة غير متوفرة'}
-                            </Text>
-
-                            <View style={{ marginTop: 14, gap: 9 }}>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الجنسية: {playerDetails.nationality || selectedPlayer.nationality || 'غير متوفرة'}</Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>رقم القميص: {playerDetails.jersey_number ?? selectedPlayer.jersey_number ?? '—'}</Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>تاريخ الميلاد: {playerDetails.date_of_birth || 'غير متوفر'}</Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الطول: {playerDetails.height || 'غير متوفر'}</Text>
-                              <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12 }}>الوزن: {playerDetails.weight || 'غير متوفر'}</Text>
-                            </View>
-
-                            <View style={{ marginTop: 18, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
-                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات الموسم</Text>
-                              {[
-                                ['المشاركات', playerDetails.season?.appearances],
-                                ['المباريات أساسياً', playerDetails.season?.starts],
-                                ['دقائق اللعب', playerDetails.season?.minutes],
-                                ['الأهداف', playerDetails.season?.goals],
-                                ['التمريرات الحاسمة', playerDetails.season?.assists],
-                                ['التصديات', playerDetails.season?.saves],
-                                ['التمريرات', playerDetails.season?.passes],
-                                ['دقة التمرير', playerDetails.season?.pass_accuracy == null ? null : playerDetails.season.pass_accuracy + '%'],
-                                ['البطاقات الصفراء', playerDetails.season?.yellow],
-                                ['البطاقات الحمراء', playerDetails.season?.red],
-                              ].map(([label, value]) => (
-                                <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
-                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
-                                  <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
-                                </View>
-                              ))}
-                            </View>
-
-                            <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
-                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>إحصائيات المسيرة</Text>
-                              {[
-                                ['المشاركات', playerDetails.career?.appearances],
-                                ['دقائق اللعب', playerDetails.career?.minutes],
-                                ['الأهداف', playerDetails.career?.goals],
-                                ['التمريرات الحاسمة', playerDetails.career?.assists],
-                                ['التصديات', playerDetails.career?.saves],
-                                ['التمريرات', playerDetails.career?.passes],
-                                ['دقة التمرير', playerDetails.career?.pass_accuracy == null ? null : playerDetails.career.pass_accuracy + '%'],
-                              ].map(([label, value]) => (
-                                <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
-                                  <Text style={{ color: '#FFFFFF', fontSize: 12 }}>{value ?? '—'}</Text>
-                                  <Text style={{ color: MUTED, fontSize: 12 }}>{label}</Text>
-                                </View>
-                              ))}
-                            </View>
-
-                            <View style={{ marginTop: 12, padding: 12, backgroundColor: '#111A15', borderRadius: 12 }}>
-                              <Text style={{ color: GREEN, textAlign: 'right', fontSize: 14, fontWeight: '900', marginBottom: 12 }}>آخر خمس مباريات</Text>
-                              {playerDetails.matches?.length ? (
-                                playerDetails.matches.slice(0, 5).map((match, index) => (
-                                  <View key={String(match.fixture_id || index)} style={{ paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#26352B' }}>
-                                    <Text style={{ color: '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
-                                      {match.home_team || '—'} {match.home_score ?? '—'} - {match.away_score ?? '—'} {match.away_team || '—'}
-                                    </Text>
-                                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 4 }}>
-                                      {match.date || 'التاريخ غير متوفر'} • {match.league_name || ''}
-                                    </Text>
-                                    <Text style={{ color: MUTED, textAlign: 'right', fontSize: 10, marginTop: 3 }}>
-                                      الدقائق: {match.mins_played ?? '—'} • الأهداف: {match.goals ?? 0} • التمريرات الحاسمة: {match.assists ?? 0}
-                                    </Text>
-                                  </View>
-                                ))
-                              ) : (
-                                <Text style={{ color: MUTED, textAlign: 'right', fontSize: 12 }}>لا تتوفر مباريات حديثة لهذا اللاعب.</Text>
-                              )}
-                            </View>
-                          </>
-                        ) : null}
-                      </View>
-                    ) : null}
-                  </>
-                ) : null}
-              </View>
-            )}
-          </View>
-        </View>
-      );
-    }
-
-    return (
-      <View style={{ width: '100%', marginTop: 12, paddingBottom: 25 }}>
-        <View style={{
-          backgroundColor: '#10271A',
-          borderRadius: 22,
-          padding: 22,
-          borderWidth: 1,
-          borderColor: '#176638',
-          alignItems: 'center',
-          marginBottom: 15,
-        }}>
-          <View style={{
-            width: 72,
-            height: 72,
-            borderRadius: 22,
-            backgroundColor: '#153D27',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 13,
-          }}>
-            <Text style={{ fontSize: 38 }}>👤</Text>
-          </View>
-          <Text style={{ color: '#FFFFFF', fontSize: 22, fontWeight: '900' }}>
-            حسابي
-          </Text>
-          <Text style={{ color: GREEN, fontSize: 13, fontWeight: '800', marginTop: 7 }}>
-            شرارة سبورت DZ
-          </Text>
-          <Text style={{
-            color: '#B0C0B5',
-            fontSize: 12,
-            textAlign: 'center',
-            marginTop: 10,
-            lineHeight: 21,
-          }}>
-            مساحتك الشخصية لمتابعة تجربتك الرياضية
-          </Text>
-          <View style={{
-            backgroundColor: '#153D27',
-            borderRadius: 20,
-            paddingVertical: 9,
-            paddingHorizontal: 17,
-            marginTop: 15,
-            borderWidth: 1,
-            borderColor: '#287A45',
-          }}>
-            <Text style={{ color: GREEN, fontSize: 12, fontWeight: '900' }}>
-              ⭐ عضوية شرارة Premium — قريباً
-            </Text>
-          </View>
-        </View>
-
-        <View style={{
-          backgroundColor: PANEL,
-          borderRadius: 18,
-          padding: 17,
-          borderWidth: 1,
-          borderColor: '#253B2D',
-          marginBottom: 12,
-        }}>
-          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
-            🌐 لغة التطبيق
-          </Text>
-          <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 14 }}>
-            اختر اللغة المفضلة لديك
-          </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 7 }}>
-            {[
-              { code: 'ar', label: 'العربية' },
-              { code: 'fr', label: 'Français' },
-              { code: 'en', label: 'English' }
-            ].map(item => (
-              <TouchableOpacity
-                key={item.code}
-                onPress={() => setLanguage(item.code)}
-                style={{
-                  flex: 1,
-                  backgroundColor: language === item.code ? '#153D27' : '#0B120E',
-                  borderWidth: 1,
-                  borderColor: language === item.code ? GREEN : '#26372D',
-                  paddingVertical: 13,
-                  borderRadius: 11,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{
-                  color: language === item.code ? GREEN : '#FFFFFF',
-                  fontWeight: '900',
-                  fontSize: 12,
-                }}>
-                  {item.label}
-                </Text>
-                {language === item.code ? (
-                  <Text style={{ color: GREEN, fontSize: 10, marginTop: 4 }}>✓ محددة</Text>
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={{
-          backgroundColor: PANEL,
-          borderRadius: 18,
-          padding: 17,
-          borderWidth: 1,
-          borderColor: '#253B2D',
-          marginBottom: 12,
-        }}>
-          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
-            🔊 إعدادات الصوت
-          </Text>
-          <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 5, marginBottom: 13 }}>
-            التحكم في أصوات التنبيهات
-          </Text>
-          <TouchableOpacity
-            onPress={() => setSoundEnabled(v => !v)}
-            style={{
-              backgroundColor: soundEnabled ? '#153D27' : '#241C1C',
-              padding: 14,
-              borderRadius: 12,
-              alignItems: 'center',
-              borderWidth: 1,
-              borderColor: soundEnabled ? '#287A45' : '#573333',
-            }}
-          >
-            <Text style={{
-              color: soundEnabled ? GREEN : '#FFAAAA',
-              fontWeight: '900',
-              fontSize: 13,
-            }}>
-              {soundEnabled ? '🔊 الصوت مفعّل' : '🔇 الصوت مكتوم'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{
-          backgroundColor: PANEL,
-          borderRadius: 18,
-          padding: 17,
-          borderWidth: 1,
-          borderColor: '#253B2D',
-          marginBottom: 12,
-        }}>
-          <Text style={{ color: GREEN, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>
-            🔔 الإشعارات
-          </Text>
-          <View style={{
-            backgroundColor: '#0B120E',
-            borderRadius: 11,
-            padding: 13,
-            marginTop: 12,
-          }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 12, textAlign: 'right', fontWeight: '800' }}>
-              حالة خدمة الإشعارات
-            </Text>
-            <Text style={{
-              color: MUTED,
-              fontSize: 12,
-              textAlign: 'right',
-              marginTop: 8,
-              lineHeight: 20,
-            }}>
-              {pushStatus}
-            </Text>
-          </View>
-          <Text style={{
-            color: MUTED,
-            fontSize: 10,
-            textAlign: 'right',
-            marginTop: 10,
-            lineHeight: 18,
-          }}>
-            الإشعارات التلقائية للأهداف تحتاج ربط خادم الإرسال.
-          </Text>
-        </View>
-
-        <View style={{
-          backgroundColor: '#0D1711',
-          borderRadius: 16,
-          padding: 16,
-          borderWidth: 1,
-          borderColor: '#253B2D',
-          alignItems: 'center',
-        }}>
-          <Text style={{ color: GREEN, fontSize: 13, fontWeight: '900' }}>
-            شرارة سبورت DZ ⚽
-          </Text>
-          <Text style={{ color: MUTED, fontSize: 11, marginTop: 7 }}>
-            منصتك لمتابعة كرة القدم والبطولات
-          </Text>
-          <Text style={{ color: '#64766A', fontSize: 10, marginTop: 9 }}>
-            جميع الحقوق محفوظة © Charara Sport DZ
-          </Text>
-        </View>
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -4980,10 +5028,10 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => selectedMatch.streamUrl ? openMatchInsideApp(selectedMatch.streamUrl) : (selectedMatch.isSportApiFixture || selectedMatch.isAfconFixture) ? Alert.alert('تنبيه', 'لا يتوفر رابط بث مطابق لهذه المباراة حالياً.') : selectedMatch.url ? openMatchInsideApp(selectedMatch.url) : Alert.alert('تنبيه', 'رابط المباراة غير متوفر.')}
+              onPress={() => { if (selectedMatch.streamUrl && /^https?:\/\//i.test(selectedMatch.streamUrl)) { openMatchInsideApp(selectedMatch.streamUrl); } else { Alert.alert('البث غير متاح', 'لا يتوفر رابط بث رسمي ومعتمد لهذه المباراة حالياً.'); } }}
               style={{ backgroundColor: '#153D27', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 10 }}
             >
-              <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة داخل التطبيق</Text>
+              <Text style={{ color: GREEN, fontWeight: '900' }}>▶ مشاهدة البث الرسمي</Text>
             </TouchableOpacity>
                   </>
         ) : tab === 'الرئيسية' ? (
@@ -4995,13 +5043,13 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
         ) : tab === 'المفضلة' ? (
           <FavoritesPage />
         ) : tab === 'شرارة AI' ? (
-          <ShararaAIPage />
+          <ShararaAIPage shararaAIMessages={shararaAIMessages} shararaAIMessage={shararaAIMessage} setShararaAIMessage={setShararaAIMessage} shararaAILoading={shararaAILoading} onSend={sendShararaAIMessage} />
         ) : tab === 'VAR الذكي' ? (
-          <VARPage />
+          <VARPage matches={matches} varMedia={varMedia} setVarMedia={setVarMedia} varCase={varCase} setVarCase={setVarCase} varSelectedMatch={varSelectedMatch} setVarSelectedMatch={setVarSelectedMatch} varAnalyzing={varAnalyzing} setVarAnalyzing={setVarAnalyzing} />
         ) : tab === 'توقعات شرارة' ? (
-          <PredictionsPage matches={matches} />
+          <PredictionsPage matches={matches} apiUrl={STATS_API_URL} />
         ) : (
-          <OtherPage />
+          <OtherPage tab={tab} apiUrl={AFCON_API_URL} language={language} setLanguage={setLanguage} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} pushStatus={pushStatus} />
         )}
 
         <Text style={styles.footer}>
@@ -5533,17 +5581,18 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
 
       <View style={styles.bottomNav}>
         {tabs.map((item, index) => {
-          const icons = ['⌂', '⚽', '⚡', '🎥', '★', '📺', '🏆', '♙'];
+          const icons = ["⌂", "⚽", "⚡", "🎥", "📊", "★", "📺", "🏆", "♙"];
           const active = tab === item;
           const labels = [
-            'الرئيسية',
-            'المباريات',
-            'شرارة AI',
-            'VAR',
-            'المفضلة',
-            'البث',
-            'البطولات',
-            'حسابي',
+            "الرئيسية",
+            "المباريات",
+            "شرارة AI",
+            "VAR",
+            "التوقعات",
+            "المفضلة",
+            "البث",
+            "البطولات",
+            "حسابي",
           ];
 
           return (
