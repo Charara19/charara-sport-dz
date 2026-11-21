@@ -770,7 +770,7 @@ const fetchMatches = async (day = 'today') => {
 };
 
 useEffect(() => {
-    if (tab !== 'المباريات') return;
+    if (tab !== 'المباريات' && tab !== 'توقعات شرارة') return;
 
     // جلب المباريات فور فتح الصفحة
     fetchMatches(matchDay);
