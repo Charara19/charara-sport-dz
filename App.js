@@ -40,6 +40,39 @@ const BG = '#070B09';
 const PANEL = '#111A15';
 const MUTED = '#91A398';
 
+const TeamLogo = ({ uri, size = 42, style }) => {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+
+  if (!uri || failed) {
+    return (
+      <View style={[{
+        width: size,
+        height: size,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }, style]}>
+        <Text style={{ fontSize: size * 0.62 }}>⚽</Text>
+      </View>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={[{
+        width: size,
+        height: size,
+        resizeMode: 'contain',
+      }, style]}
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
 const platforms = [
   {
     name: 'FIFA+',
@@ -1901,9 +1934,7 @@ useEffect(() => {
           >
             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
-                {match.leagueLogo ? (
-                  <Image source={{ uri: match.leagueLogo }} style={{ width: 22, height: 22, resizeMode: 'contain', marginLeft: 7 }} />
-                ) : null}
+                <TeamLogo uri={match.leagueLogo} size={22} style={{ marginLeft: 7 }} />
                 <Text numberOfLines={1} style={{ color: '#DCECE0', fontSize: 11, fontWeight: '800', flex: 1, textAlign: 'right' }}>
                   {match.league || 'بطولة أخرى'}
                 </Text>
@@ -1921,7 +1952,7 @@ useEffect(() => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.homeLogo ? <Image source={{ uri: match.homeLogo }} style={{ width: 42, height: 42, resizeMode: 'contain', marginHorizontal: 6 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
+                <TeamLogo uri={match.homeLogo} size={42} style={{ marginHorizontal: 6 }} />
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.home}</Text>
                 <TouchableOpacity onPress={() => toggleFavoriteTeam(match.home)} style={{ padding: 5 }}>
                   <Text style={{ color: favoriteTeams.includes(match.home) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
@@ -1935,7 +1966,7 @@ useEffect(() => {
                 </Text>
               </View>
               <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                {match.awayLogo ? <Image source={{ uri: match.awayLogo }} style={{ width: 42, height: 42, resizeMode: 'contain', marginHorizontal: 6 }} onError={(e) => Alert.alert('خطأ تحميل الشعار', String(e.nativeEvent.error || 'تعذر تحميل الصورة'))} /> : null}
+                <TeamLogo uri={match.awayLogo} size={42} style={{ marginHorizontal: 6 }} />
                 <Text style={{ color: '#FFFFFF', textAlign: 'center', fontWeight: '900', fontSize: 13 }}>{match.away}</Text>
                 <TouchableOpacity onPress={() => toggleFavoriteTeam(match.away)} style={{ padding: 5 }}>
                   <Text style={{ color: favoriteTeams.includes(match.away) ? '#FFD700' : MUTED, fontSize: 19 }}>★</Text>
@@ -3420,13 +3451,7 @@ useEffect(() => {
                           style={{ flex: 1 }}
                         >
                             <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flex: 1 }}>
-                              {row.team?.logo ? (
-                                <Image
-                                  source={{ uri: row.team.logo }}
-                                  style={{ width: 24, height: 24, marginLeft: 8 }}
-                                  resizeMode="contain"
-                                />
-                              ) : null}
+                              <TeamLogo uri={row.team?.logo} size={24} style={{ marginLeft: 8 }} />
                               <Text numberOfLines={1} style={{ flex: 1, color: ['تصفيات أمم إفريقيا', 'كأس أمم إفريقيا'].includes(selectedLeague) ? GREEN : '#FFFFFF', textAlign: 'right', fontSize: 12, fontWeight: 'bold' }}>
                                 {row.team?.short_name || row.team?.name || '—'}
                               </Text>
@@ -4095,14 +4120,7 @@ useEffect(() => {
                 minHeight: 145,
               }}>
                 <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
-                  {selectedMatch.homeLogo ? (
-                    <Image
-                      source={{ uri: selectedMatch.homeLogo }}
-                      style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 10 }}
-                    />
-                  ) : (
-                    <Text style={{ fontSize: 42 }}>⚽</Text>
-                  )}
+                  <TeamLogo uri={selectedMatch.homeLogo} size={76} style={{ marginBottom: 10 }} />
                   <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center', fontSize: 14 }}>
                     {selectedMatch.home || 'الفريق الأول'}
                   </Text>
@@ -4147,14 +4165,7 @@ useEffect(() => {
                 </View>
 
                 <View style={{ flex: 1, alignItems: 'center', paddingHorizontal: 4 }}>
-                  {selectedMatch.awayLogo ? (
-                    <Image
-                      source={{ uri: selectedMatch.awayLogo }}
-                      style={{ width: 76, height: 76, resizeMode: 'contain', marginBottom: 10 }}
-                    />
-                  ) : (
-                    <Text style={{ fontSize: 42 }}>⚽</Text>
-                  )}
+                  <TeamLogo uri={selectedMatch.awayLogo} size={76} style={{ marginBottom: 10 }} />
                   <Text style={{ color: '#FFFFFF', fontWeight: '900', textAlign: 'center', fontSize: 14 }}>
                     {selectedMatch.away || 'الفريق الثاني'}
                   </Text>
