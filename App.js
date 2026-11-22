@@ -1848,7 +1848,7 @@ const ShararaAIPage = ({ shararaAIMessages, shararaAIMessage, setShararaAIMessag
       />
       <TouchableOpacity
         disabled={!shararaAIMessage.trim() || shararaAILoading}
-        onPress={sendShararaAIMessage}
+        onPress={onSend}
         style={{
           backgroundColor: shararaAIMessage.trim() ? GREEN : '#35443A',
           borderRadius: 13,
