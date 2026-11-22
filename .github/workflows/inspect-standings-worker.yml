@@ -1,0 +1,28 @@
+name: Inspect Standings Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read safe Worker settings
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/charara-standings-api/settings" \
+            -o /tmp/worker-settings.json
+          jq -e '.success == true' /tmp/worker-settings.json >/dev/null
+          jq '{
+            compatibility_date: .result.compatibility_date,
+            compatibility_flags: .result.compatibility_flags,
+            bindings: [.result.bindings[]? | {name, type}]
+          }' /tmp/worker-settings.json
