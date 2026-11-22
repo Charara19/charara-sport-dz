@@ -403,15 +403,23 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}>
-                <Text style={{
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  fontWeight: '900',
+                <View style={{
                   flex: 1,
-                  textAlign: 'left',
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}>
-                  {match.home}
-                </Text>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    flex: 1,
+                    textAlign: 'left',
+                  }}>
+                    {match.home}
+                  </Text>
+                  <TeamLogo uri={match.homeLogo} size={32} style={{ marginLeft: 7 }} />
+                </View>
+
                 <Text style={{
                   color: GREEN,
                   fontSize: 12,
@@ -420,15 +428,23 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                 }}>
                   VS
                 </Text>
-                <Text style={{
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  fontWeight: '900',
+
+                <View style={{
                   flex: 1,
-                  textAlign: 'right',
+                  flexDirection: 'row',
+                  alignItems: 'center',
                 }}>
-                  {match.away}
-                </Text>
+                  <TeamLogo uri={match.awayLogo} size={32} style={{ marginRight: 7 }} />
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 14,
+                    fontWeight: '900',
+                    flex: 1,
+                    textAlign: 'right',
+                  }}>
+                    {match.away}
+                  </Text>
+                </View>
               </View>
 
               <Text style={{
