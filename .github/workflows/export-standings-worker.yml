@@ -1,0 +1,23 @@
+name: Export Standings Worker
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Export Worker source
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error -D /tmp/headers -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/charara-standings-api" -o standings-worker-export.bin
+          test -s standings-worker-export.bin
+          grep -i "^content-type:" /tmp/headers || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standings-worker-source
+          path: standings-worker-export.bin
+          retention-days: 1
