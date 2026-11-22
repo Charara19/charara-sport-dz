@@ -271,7 +271,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
 
       const response = await fetch(
         apiUrl + 'predictions?home=' + ids[0] +
-        '&away=' + ids[1]
+        '&away=' + ids[1] + '&h2h=1'
       );
 
       const data = await response.json();
@@ -553,6 +553,166 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   }}>
                     {prediction.result.note || 'توقع تقديري وليس ضماناً للنتيجة'}
                   </Text>
+                  {prediction.result.head_to_head ? (
+                    <View style={{
+                      backgroundColor: '#101A14',
+                      borderRadius: 10,
+                      padding: 12,
+                      marginTop: 15,
+                      borderWidth: 1,
+                      borderColor: '#31543A',
+                    }}>
+                      <Text style={{
+                        color: GREEN,
+                        fontSize: 14,
+                        fontWeight: '900',
+                        textAlign: 'center',
+                        marginBottom: 10,
+                      }}>
+                        ⚔️ المواجهات المباشرة
+                      </Text>
+
+                      {prediction.result.head_to_head.success ? (() => {
+                        const h2hMatches = Array.isArray(prediction.result.head_to_head.matches)
+                          ? prediction.result.head_to_head.matches
+                          : [];
+                        const firstId = Number(prediction.result.head_to_head.team1_id);
+                        const secondId = Number(prediction.result.head_to_head.team2_id);
+
+                        const summary = h2hMatches.reduce((acc, item) => {
+                          const homeId = Number(item.home_id);
+                          const awayId = Number(item.away_id);
+                          const homeGoals = Number(item.home_score);
+                          const awayGoals = Number(item.away_score);
+
+                          if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return acc;
+
+                          let firstGoals;
+                          let secondGoals;
+
+                          if (homeId === firstId && awayId === secondId) {
+                            firstGoals = homeGoals;
+                            secondGoals = awayGoals;
+                          } else if (homeId === secondId && awayId === firstId) {
+                            firstGoals = awayGoals;
+                            secondGoals = homeGoals;
+                          } else {
+                            return acc;
+                          }
+
+                          if (firstGoals > secondGoals) acc.firstWins++;
+                          else if (firstGoals < secondGoals) acc.secondWins++;
+                          else acc.draws++;
+
+                          return acc;
+                        }, { firstWins: 0, secondWins: 0, draws: 0 });
+
+                        return (
+                          <>
+                            {h2hMatches.length > 0 ? (
+                              <>
+                                <Text style={{
+                                  color: '#FFFFFF',
+                                  fontSize: 12,
+                                  textAlign: 'center',
+                                  marginBottom: 12,
+                                }}>
+                                  إجمالي المواجهات: {h2hMatches.length}
+                                </Text>
+
+                                <View style={{
+                                  flexDirection: 'row',
+                                  justifyContent: 'space-around',
+                                  marginBottom: 13,
+                                }}>
+                                  <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ color: GREEN, fontSize: 20, fontWeight: '900' }}>
+                                      {summary.firstWins}
+                                    </Text>
+                                    <Text style={{ color: MUTED, fontSize: 10, textAlign: 'center' }}>
+                                      فوز {match.home}
+                                    </Text>
+                                  </View>
+                                  <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: '900' }}>
+                                      {summary.draws}
+                                    </Text>
+                                    <Text style={{ color: MUTED, fontSize: 10 }}>
+                                      تعادل
+                                    </Text>
+                                  </View>
+                                  <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ color: '#FFB86B', fontSize: 20, fontWeight: '900' }}>
+                                      {summary.secondWins}
+                                    </Text>
+                                    <Text style={{ color: MUTED, fontSize: 10, textAlign: 'center' }}>
+                                      فوز {match.away}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                <Text style={{
+                                  color: '#FFFFFF',
+                                  fontSize: 12,
+                                  fontWeight: '900',
+                                  textAlign: 'right',
+                                  marginBottom: 8,
+                                }}>
+                                  آخر المواجهات
+                                </Text>
+
+                                {h2hMatches.slice(0, 5).map((item, index) => (
+                                  <View
+                                    key={String(item.id || item.date || index)}
+                                    style={{
+                                      backgroundColor: '#17251B',
+                                      borderRadius: 8,
+                                      padding: 9,
+                                      marginTop: 6,
+                                    }}
+                                  >
+                                    <Text style={{
+                                      color: '#FFFFFF',
+                                      fontSize: 11,
+                                      fontWeight: '900',
+                                      textAlign: 'center',
+                                    }}>
+                                      {item.home_team || 'الفريق الأول'}  {item.home_score} - {item.away_score}  {item.away_team || 'الفريق الثاني'}
+                                    </Text>
+                                    <Text style={{
+                                      color: MUTED,
+                                      fontSize: 10,
+                                      textAlign: 'center',
+                                      marginTop: 5,
+                                    }}>
+                                      {item.date || ''} · {item.league_name || 'بطولة غير محددة'}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </>
+                            ) : (
+                              <Text style={{
+                                color: MUTED,
+                                fontSize: 11,
+                                textAlign: 'center',
+                              }}>
+                                لا توجد مواجهات مباشرة متاحة بين الفريقين.
+                              </Text>
+                            )}
+                          </>
+                        );
+                      })() : (
+                        <Text style={{
+                          color: MUTED,
+                          fontSize: 11,
+                          textAlign: 'center',
+                        }}>
+                          تعذر جلب بيانات المواجهات المباشرة حالياً.
+                        </Text>
+                      )}
+                    </View>
+                  ) : null}
+
                 </View>
               ) : null}
             </View>
