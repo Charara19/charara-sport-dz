@@ -896,11 +896,19 @@ export default {
       }
 
       if (path === "/mcp-matches-test") {
-        const date = new URL(request.url).searchParams.get("date") || "2026-10-25";
+        const params = new URL(request.url).searchParams;
+        const date = params.get("date") || "2026-10-25";
+        const leagueId = params.get("league_id") || "68117";
+
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
           return json({ success: false, error: "Invalid date. Use YYYY-MM-DD" }, 400);
         }
-        const result = await getSportApiMatchesTest(env, date, 68117);
+
+        if (!/^\d+$/.test(leagueId) || !ALLOWED_LEAGUES.has(leagueId)) {
+          return json({ success: false, error: "League is not allowed" }, 403);
+        }
+
+        const result = await getSportApiMatchesTest(env, date, Number(leagueId));
         return json(result);
       }
 
