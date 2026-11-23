@@ -1,0 +1,42 @@
+name: Deploy Weighted Standings Worker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify worker file
+        run: |
+          test -s worker-export/standings-worker-weighted-test.js
+          echo "Worker file is ready"
+
+      - name: Update Worker code only
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -e
+          test -n "$CF_ACCOUNT_ID"
+          test -n "$CF_API_TOKEN"
+
+          HTTP_CODE=$(curl -sS -o response.json -w '%{http_code}' \
+            -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/charara-standings-api/content" \
+            -H "Authorization: Bearer ${CF_API_TOKEN}" \
+            -F 'metadata={"main_module":"worker.js"};type=application/json' \
+            -F 'worker.js=@worker-export/standings-worker-weighted-test.js;type=application/javascript+module')
+
+          echo "HTTP status: $HTTP_CODE"
+          jq '{success, errors, messages}' response.json
+
+          test "$HTTP_CODE" = "200"
+          jq -e '.success == true' response.json
+          echo "Worker code update successful"
