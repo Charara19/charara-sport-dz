@@ -914,6 +914,108 @@ export default {
         });
       }
 
+      if (path === "/history-import") {
+        if (!env.HISTORY_IMPORT_TOKEN) {
+          return json({ success: false, error: "Import token is not configured" }, 500);
+        }
+
+        if (request.headers.get("Authorization") !== "Bearer " + env.HISTORY_IMPORT_TOKEN) {
+          return json({ success: false, error: "Unauthorized" }, 401);
+        }
+
+        if (!env.MATCH_HISTORY_DB) {
+          return json({ success: false, error: "D1 database is not configured" }, 500);
+        }
+
+        const date = url.searchParams.get("date") || "";
+        const leagueId = url.searchParams.get("league_id") || "";
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return json({ success: false, error: "Invalid date. Use YYYY-MM-DD" }, 400);
+        }
+
+        if (!/^\d+$/.test(leagueId) || !ALLOWED_LEAGUES.has(leagueId)) {
+          return json({ success: false, error: "League is not allowed" }, 403);
+        }
+
+        const result = await getSportApiMatchesTest(env, date, Number(leagueId));
+        const matches = Array.isArray(result?.data?.matches) ? result.data.matches : [];
+
+        const statements = [];
+        let skipped = 0;
+
+        for (const match of matches) {
+          const status = String(match.status || "").toUpperCase();
+          const leagueName = String(match.league?.name || "").toLowerCase();
+          const actualLeagueId = Number(match.league?.id || leagueId);
+          const score = String(match.score || "").match(/^\s*(\d+)\s*[-:]\s*(\d+)\s*$/);
+
+          const homeId = Number(match.home?.id);
+          const awayId = Number(match.away?.id);
+          const homeName = match.home?.name;
+          const awayName = match.away?.name;
+
+          if (
+            !["FT", "AET", "PEN", "PENS"].includes(status) ||
+            leagueName.includes("friendly") ||
+            actualLeagueId === 42234 ||
+            !score ||
+            !Number.isSafeInteger(homeId) ||
+            !Number.isSafeInteger(awayId) ||
+            !homeName ||
+            !awayName
+          ) {
+            skipped++;
+            continue;
+          }
+
+          const matchDate = String(match.kickoff_utc || date).slice(0, 10);
+          const season = Number(matchDate.slice(0, 4));
+
+          statements.push(
+            env.MATCH_HISTORY_DB.prepare(`
+              INSERT INTO matches (
+                fixture_id, league_id, league_name, season, match_date,
+                status, home_team_id, home_team_name,
+                away_team_id, away_team_name, home_score, away_score
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(fixture_id) DO UPDATE SET
+                league_id = excluded.league_id,
+                league_name = excluded.league_name,
+                season = excluded.season,
+                match_date = excluded.match_date,
+                status = excluded.status,
+                home_team_id = excluded.home_team_id,
+                home_team_name = excluded.home_team_name,
+                away_team_id = excluded.away_team_id,
+                away_team_name = excluded.away_team_name,
+                home_score = excluded.home_score,
+                away_score = excluded.away_score,
+                updated_at = CURRENT_TIMESTAMP
+            `).bind(
+              Number(match.id), actualLeagueId, match.league?.name || "",
+              Number.isFinite(season) ? season : null, matchDate,
+              status, homeId, homeName, awayId, awayName,
+              Number(score[1]), Number(score[2])
+            )
+          );
+        }
+
+        if (statements.length) {
+          await env.MATCH_HISTORY_DB.batch(statements);
+        }
+
+        return json({
+          success: true,
+          date,
+          league_id: Number(leagueId),
+          received: matches.length,
+          imported: statements.length,
+          skipped,
+          message: "Historical matches processed"
+        });
+      }
+
       if (path === "/mcp-matches-test") {
         const params = new URL(request.url).searchParams;
         const date = params.get("date") || "2026-10-25";
