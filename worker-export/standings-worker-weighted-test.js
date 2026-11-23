@@ -914,6 +914,113 @@ export default {
         });
       }
 
+      if (path === "/history-import-league") {
+        if (!env.HISTORY_IMPORT_TOKEN) {
+          return json({ success: false, error: "Import token is not configured" }, 500);
+        }
+
+        if (request.headers.get("Authorization") !== "Bearer " + env.HISTORY_IMPORT_TOKEN) {
+          return json({ success: false, error: "Unauthorized" }, 401);
+        }
+
+        if (!env.MATCH_HISTORY_DB) {
+          return json({ success: false, error: "D1 database is not configured" }, 500);
+        }
+
+        const leagueId = url.searchParams.get("league_id") || "";
+
+        if (!/^\d+$/.test(leagueId) || !ALLOWED_LEAGUES.has(leagueId)) {
+          return json({ success: false, error: "League is not allowed" }, 403);
+        }
+
+        const result = await getSportApiLeague(env, Number(leagueId));
+        const league = result?.data || {};
+        const teams = Array.isArray(league.teams) ? league.teams : [];
+        const recent = Array.isArray(league.recent_results) ? league.recent_results : [];
+        const teamMap = new Map(teams.map(team => [
+          String(team.name || "").trim().toLowerCase(),
+          Number(team.id)
+        ]));
+
+        const statements = [];
+        let skipped = 0;
+
+        for (const match of recent) {
+          const homeName = String(match.home_team || "").trim();
+          const awayName = String(match.away_team || "").trim();
+          const homeId = teamMap.get(homeName.toLowerCase());
+          const awayId = teamMap.get(awayName.toLowerCase());
+          const homeScore = Number(match.home_score);
+          const awayScore = Number(match.away_score);
+          const matchDate = String(match.date || "");
+          const fixtureId = Number(match.id);
+
+          if (
+            !Number.isSafeInteger(fixtureId) ||
+            !Number.isSafeInteger(homeId) ||
+            !Number.isSafeInteger(awayId) ||
+            !Number.isInteger(homeScore) ||
+            !Number.isInteger(awayScore) ||
+            homeScore < 0 ||
+            awayScore < 0 ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)
+          ) {
+            skipped++;
+            continue;
+          }
+
+          statements.push(
+            env.MATCH_HISTORY_DB.prepare(`
+              INSERT INTO matches (
+                fixture_id, league_id, league_name, season, match_date,
+                status, home_team_id, home_team_name,
+                away_team_id, away_team_name, home_score, away_score
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(fixture_id) DO UPDATE SET
+                league_id = excluded.league_id,
+                league_name = excluded.league_name,
+                season = excluded.season,
+                match_date = excluded.match_date,
+                status = excluded.status,
+                home_team_id = excluded.home_team_id,
+                home_team_name = excluded.home_team_name,
+                away_team_id = excluded.away_team_id,
+                away_team_name = excluded.away_team_name,
+                home_score = excluded.home_score,
+                away_score = excluded.away_score,
+                updated_at = CURRENT_TIMESTAMP
+            `).bind(
+              fixtureId,
+              Number(leagueId),
+              league.name || "",
+              Number(matchDate.slice(0, 4)),
+              matchDate,
+              "FT",
+              homeId,
+              homeName,
+              awayId,
+              awayName,
+              homeScore,
+              awayScore
+            )
+          );
+        }
+
+        if (statements.length) {
+          await env.MATCH_HISTORY_DB.batch(statements);
+        }
+
+        return json({
+          success: true,
+          league_id: Number(leagueId),
+          league_name: league.name || "",
+          teams: teams.length,
+          received: recent.length,
+          imported: statements.length,
+          skipped,
+          message: "League history processed"
+        });
+      }
       if (path === "/history-import") {
         if (!env.HISTORY_IMPORT_TOKEN) {
           return json({ success: false, error: "Import token is not configured" }, 500);
