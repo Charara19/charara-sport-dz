@@ -1,0 +1,55 @@
+name: Bind Match History D1
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add D1 binding safely
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DB_ID: ${{ vars.MATCH_HISTORY_DB_ID }}
+        run: |
+          set -euo pipefail
+
+          test -n "$CF_TOKEN"
+          test -n "$CF_ACCOUNT"
+          [[ "$DB_ID" =~ ^[0-9a-fA-F-]{36}$ ]]
+
+          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/charara-standings-api/settings"
+
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            "$API" -o /tmp/current.json
+
+          jq -e '.success == true' /tmp/current.json >/dev/null
+
+          jq --arg db "$DB_ID" '
+            {
+              bindings: (
+                [.result.bindings[]? | select(.name != "MATCH_HISTORY_DB")]
+                + [{
+                    type: "d1",
+                    name: "MATCH_HISTORY_DB",
+                    database_id: $db
+                  }]
+              )
+            }
+          ' /tmp/current.json > /tmp/patch.json
+
+          curl --fail-with-body --silent --show-error \
+            -X PATCH \
+            -H "Authorization: Bearer $CF_TOKEN" \
+            -F "settings=$(cat /tmp/patch.json);type=application/json" \
+            "$API" -o /tmp/updated.json
+
+          jq -e '.success == true' /tmp/updated.json >/dev/null
+
+          echo "D1 binding update completed."
+          jq '{bindings: [.result.bindings[]? | {name, type}]}' /tmp/updated.json
