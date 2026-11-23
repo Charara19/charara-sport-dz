@@ -895,6 +895,25 @@ export default {
         return json({ success: true, mcp: result });
       }
 
+      if (path === "/history-db-test") {
+        if (!env.MATCH_HISTORY_DB) {
+          return json({
+            success: false,
+            error: "MATCH_HISTORY_DB binding is not configured"
+          }, 500);
+        }
+
+        const result = await env.MATCH_HISTORY_DB
+          .prepare("SELECT COUNT(*) AS total_matches FROM matches")
+          .first();
+
+        return json({
+          success: true,
+          database: "connected",
+          total_matches: Number(result?.total_matches || 0)
+        });
+      }
+
       if (path === "/mcp-matches-test") {
         const params = new URL(request.url).searchParams;
         const date = params.get("date") || "2026-10-25";
