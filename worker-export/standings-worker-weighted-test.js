@@ -256,6 +256,70 @@ async function getSportApiLeague(env, leagueId) {
   };
 }
 
+
+async function getSportApiMatchesTest(env, date, leagueId) {
+  const endpoint = "https://sportapi.ai/mcp";
+  const headers = {
+    "X-Api-Key": env.SPORTAPI_KEY,
+    "Accept": "application/json, text/event-stream",
+    "Content-Type": "application/json"
+  };
+  const send = async payload => {
+    const response = await fetch(endpoint, {
+      method: "POST", headers, body: JSON.stringify(payload)
+    });
+    const body = await response.text();
+    if (!response.ok) throw new Error("SportAPI MCP HTTP " + response.status);
+    try {
+      return body ? JSON.parse(body) : null;
+    } catch (error) {
+      const line = body.split("\\n").find(item => item.startsWith("data:"));
+      if (line) return JSON.parse(line.slice(5).trim());
+      throw new Error("Invalid SportAPI MCP response");
+    }
+  };
+
+  const initialized = await send({
+    jsonrpc: "2.0", id: 1, method: "initialize",
+    params: {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "charara-sport-dz", version: "1.0.0" }
+    }
+  });
+  if (!initialized?.result?.protocolVersion) {
+    throw new Error("MCP initialization failed");
+  }
+
+  await send({ jsonrpc: "2.0", method: "notifications/initialized" });
+
+  const result = await send({
+    jsonrpc: "2.0", id: 2, method: "tools/call",
+    params: {
+      name: "get_matches",
+      arguments: { date, league_id: leagueId, status: "finished" }
+    }
+  });
+
+  if (result?.error) {
+    throw new Error(result.error.message || "MCP get_matches failed");
+  }
+
+  const toolResult = result?.result || {};
+  const content = toolResult.content?.find(item => item.type === "text")?.text;
+  let data = null;
+  if (content) {
+    try { data = JSON.parse(content); } catch (error) {}
+  }
+  return {
+    success: true,
+    date,
+    league_id: leagueId,
+    data,
+    raw: data ? undefined : toolResult
+  };
+}
+
 async function getSportApiTeam(env, teamId) {
   const endpoint = "https://sportapi.ai/mcp";
   const headers = {
@@ -829,6 +893,11 @@ export default {
       if (path === "/mcp-tools") {
         const result = await inspectSportApiMcp(env);
         return json({ success: true, mcp: result });
+      }
+
+      if (path === "/mcp-matches-test") {
+        const result = await getSportApiMatchesTest(env, "2026-10-25", 68117);
+        return json(result);
       }
 
       if (path === "/mcp-league-test") {
