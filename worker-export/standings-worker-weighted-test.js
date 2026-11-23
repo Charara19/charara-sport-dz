@@ -896,7 +896,11 @@ export default {
       }
 
       if (path === "/mcp-matches-test") {
-        const result = await getSportApiMatchesTest(env, "2026-10-25", 68117);
+        const date = new URL(request.url).searchParams.get("date") || "2026-10-25";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return json({ success: false, error: "Invalid date. Use YYYY-MM-DD" }, 400);
+        }
+        const result = await getSportApiMatchesTest(env, date, 68117);
         return json(result);
       }
 
