@@ -32,7 +32,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/charara-standings-api/content" \
             -H "Authorization: Bearer ${CF_API_TOKEN}" \
             -F 'metadata={"main_module":"worker.js"};type=application/json' \
-            -F 'worker.js=@worker-export/standings-worker-weighted-test.js;type=application/javascript+module')
+            -F 'worker.js=@worker-export/standings-worker-weighted-test.js;filename=worker.js;type=application/javascript+module')
 
           echo "HTTP status: $HTTP_CODE"
           jq '{success, errors, messages}' response.json
