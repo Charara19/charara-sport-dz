@@ -1,6 +1,7 @@
 
 import { WebView } from 'react-native-webview';
 import React, { useState, useRef, useEffect } from 'react';
+import { SvgUri } from 'react-native-svg';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import {
   StatusBar,
@@ -52,6 +53,14 @@ const TeamLogo = ({ uri, fallbackUri, size = 42, style }) => {
   const usingFallback = !uri || failed;
   const sourceUri = usingFallback ? fallbackUri : uri;
 
+  const handleError = () => {
+    if (!usingFallback && fallbackUri && fallbackUri !== uri) {
+      setFailed(true);
+    } else {
+      setFallbackFailed(true);
+    }
+  };
+
   if (!sourceUri || (usingFallback && fallbackFailed)) {
     return (
       <View style={[{
@@ -65,6 +74,26 @@ const TeamLogo = ({ uri, fallbackUri, size = 42, style }) => {
     );
   }
 
+  const isSvg = usingFallback || /\.svg(?:[?#]|$)/i.test(sourceUri);
+
+  if (isSvg) {
+    return (
+      <View style={[{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }, style]}>
+        <SvgUri
+          uri={sourceUri}
+          width={size}
+          height={size}
+          onError={handleError}
+        />
+      </View>
+    );
+  }
+
   return (
     <Image
       source={{ uri: sourceUri }}
@@ -73,13 +102,7 @@ const TeamLogo = ({ uri, fallbackUri, size = 42, style }) => {
         height: size,
         resizeMode: "contain",
       }, style]}
-      onError={() => {
-        if (!usingFallback && fallbackUri && fallbackUri !== uri) {
-          setFailed(true);
-        } else {
-          setFallbackFailed(true);
-        }
-      }}
+      onError={handleError}
     />
   );
 };
