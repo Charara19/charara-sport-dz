@@ -40,20 +40,25 @@ const BG = '#070B09';
 const PANEL = '#111A15';
 const MUTED = '#91A398';
 
-const TeamLogo = ({ uri, size = 42, style }) => {
+const TeamLogo = ({ uri, fallbackUri, size = 42, style }) => {
   const [failed, setFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
-  }, [uri]);
+    setFallbackFailed(false);
+  }, [uri, fallbackUri]);
 
-  if (!uri || failed) {
+  const usingFallback = !uri || failed;
+  const sourceUri = usingFallback ? fallbackUri : uri;
+
+  if (!sourceUri || (usingFallback && fallbackFailed)) {
     return (
       <View style={[{
         width: size,
         height: size,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: "center",
+        justifyContent: "center",
       }, style]}>
         <Text style={{ fontSize: size * 0.62 }}>⚽</Text>
       </View>
@@ -62,13 +67,19 @@ const TeamLogo = ({ uri, size = 42, style }) => {
 
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: sourceUri }}
       style={[{
         width: size,
         height: size,
-        resizeMode: 'contain',
+        resizeMode: "contain",
       }, style]}
-      onError={() => setFailed(true)}
+      onError={() => {
+        if (!usingFallback && fallbackUri && fallbackUri !== uri) {
+          setFailed(true);
+        } else {
+          setFallbackFailed(true);
+        }
+      }}
     />
   );
 };
@@ -425,7 +436,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   }}>
                     {match.home}
                   </Text>
-                  <TeamLogo uri={match.homeLogo} size={32} style={{ marginLeft: 7 }} />
+                  <TeamLogo uri={match.homeLogo} fallbackUri={match.homeTeamId ? apiUrl + "teams/" + match.homeTeamId + "/logo" : null} size={32} style={{ marginLeft: 7 }} />
                 </View>
 
                 <Text style={{
@@ -442,7 +453,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   flexDirection: 'row',
                   alignItems: 'center',
                 }}>
-                  <TeamLogo uri={match.awayLogo} size={32} style={{ marginRight: 7 }} />
+                  <TeamLogo uri={match.awayLogo} fallbackUri={match.awayTeamId ? apiUrl + "teams/" + match.awayTeamId + "/logo" : null} size={32} style={{ marginRight: 7 }} />
                   <Text style={{
                     color: '#FFFFFF',
                     fontSize: 14,
