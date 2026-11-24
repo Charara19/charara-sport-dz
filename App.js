@@ -261,9 +261,17 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
 
     try {
       const ids = await Promise.all([
-        resolveTeamId(match.home),
-        resolveTeamId(match.away)
+        match.homeTeamId
+          ? Promise.resolve(Number(match.homeTeamId))
+          : resolveTeamId(match.home),
+        match.awayTeamId
+          ? Promise.resolve(Number(match.awayTeamId))
+          : resolveTeamId(match.away)
       ]);
+
+      if (!ids.every(id => Number.isSafeInteger(id) && id > 0)) {
+        throw new Error("معرّفات الفرق غير صالحة");
+      }
 
       if (ids[0] === ids[1]) {
         throw new Error('تعذر التمييز بين الفريقين');
@@ -2778,6 +2786,8 @@ const fetchMatches = async (day = 'today') => {
           return {
             home: item.teams.home.name,
             away: item.teams.away.name,
+            homeTeamId: item.teams.home.id || null,
+            awayTeamId: item.teams.away.id || null,
             homeLogo: item.teams.home.logo || '',
             awayLogo: item.teams.away.logo || '',
             league: item.league?.name || 'بطولة أخرى',
