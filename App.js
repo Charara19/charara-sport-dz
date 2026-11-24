@@ -264,6 +264,94 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
     return candidate.id;
   };
 
+
+  const sportLogoIdsCacheRef = useRef({});
+  const [sportLogoIds, setSportLogoIds] = useState({});
+
+  const resolveSportApiTeamId = async teamName => {
+    const normalized = normalizeTeamName(teamName);
+    if (!normalized) return null;
+
+    if (sportLogoIdsCacheRef.current[normalized]) {
+      return sportLogoIdsCacheRef.current[normalized];
+    }
+
+    const response = await fetch(
+      apiUrl + 'teams/search?query=' +
+      encodeURIComponent(teamName) + '&limit=20'
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const excluded = /(women|woman|ladies|youth|reserve|u19|u20|u21|u23|ii|iii)/i;
+
+    const candidates = (data.teams || []).filter(team =>
+      normalizeTeamName(team.name) === normalized &&
+      !excluded.test(team.name) &&
+      team.league_id != null &&
+      !/^(Europe|World)$/i.test(team.country || '')
+    );
+
+    const uniqueCandidates = [
+      ...new Map(candidates.map(team => [team.id, team])).values()
+    ];
+
+    if (uniqueCandidates.length !== 1) return null;
+
+    const candidate = uniqueCandidates[0];
+    const detailsResponse = await fetch(
+      apiUrl + 'teams/details/' + candidate.id
+    );
+
+    if (!detailsResponse.ok) return null;
+
+    const details = await detailsResponse.json();
+    const actualName = details.team?.team?.name;
+
+    if (!actualName || normalizeTeamName(actualName) !== normalized) {
+      return null;
+    }
+
+    sportLogoIdsCacheRef.current[normalized] = candidate.id;
+    return candidate.id;
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    const loadLogoIds = async () => {
+      const names = [
+        ...new Set(
+          upcomingMatches.flatMap(match => [match.home, match.away])
+        )
+      ];
+
+      const results = await Promise.all(
+        names.map(async name => ({
+          name: normalizeTeamName(name),
+          id: await resolveSportApiTeamId(name).catch(() => null)
+        }))
+      );
+
+      if (!active) return;
+
+      setSportLogoIds(previous => {
+        const updated = { ...previous };
+        results.forEach(item => {
+          if (item.id) updated[item.name] = item.id;
+        });
+        return updated;
+      });
+    };
+
+    loadLogoIds();
+
+    return () => {
+      active = false;
+    };
+  }, [matches, apiUrl]);
+
   const analyzeMatch = async (match, matchKey) => {
     setPredictionStates(previous => ({
       ...previous,
@@ -436,7 +524,16 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   }}>
                     {match.home}
                   </Text>
-                  <TeamLogo uri={match.homeLogo} fallbackUri={match.homeTeamId ? apiUrl + "teams/" + match.homeTeamId + "/logo" : null} size={32} style={{ marginLeft: 7 }} />
+                  <TeamLogo
+                    uri={match.homeLogo}
+                    fallbackUri={
+                      sportLogoIds[normalizeTeamName(match.home)]
+                        ? apiUrl + "teams/" + sportLogoIds[normalizeTeamName(match.home)] + "/logo"
+                        : null
+                    }
+                    size={32}
+                    style={{ marginLeft: 7 }}
+                  />
                 </View>
 
                 <Text style={{
@@ -453,7 +550,16 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   flexDirection: 'row',
                   alignItems: 'center',
                 }}>
-                  <TeamLogo uri={match.awayLogo} fallbackUri={match.awayTeamId ? apiUrl + "teams/" + match.awayTeamId + "/logo" : null} size={32} style={{ marginRight: 7 }} />
+                  <TeamLogo
+                    uri={match.awayLogo}
+                    fallbackUri={
+                      sportLogoIds[normalizeTeamName(match.away)]
+                        ? apiUrl + "teams/" + sportLogoIds[normalizeTeamName(match.away)] + "/logo"
+                        : null
+                    }
+                    size={32}
+                    style={{ marginRight: 7 }}
+                  />
                   <Text style={{
                     color: '#FFFFFF',
                     fontSize: 14,
