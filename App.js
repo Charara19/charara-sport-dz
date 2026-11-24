@@ -498,6 +498,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
         marginBottom: 12,
       }}>
         المباريات المتاحة للتحليل
+      <Text style={{ color: "#FFD166", fontSize: 12, textAlign: "right", marginBottom: 10 }}>اختبار الشعارات: {Object.keys(sportLogoIds).length} فريق تم التعرف عليه من أصل {new Set(upcomingMatches.flatMap(match => [normalizeTeamName(match.home), normalizeTeamName(match.away)])).size}</Text>
       </Text>
 
       {upcomingMatches.length > 0 ? (
