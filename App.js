@@ -596,6 +596,38 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                 </View>
               </View>
 
+              {prediction.result?.success ? (() => {
+                const scoreParts = String(prediction.result.predicted_score || '')
+                  .match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
+                if (!scoreParts) return null;
+
+                return (
+                  <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    marginTop: 9,
+                    paddingHorizontal: 8,
+                  }}>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900' }}>
+                        {scoreParts[1]}
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 11 }}>
+                        أهداف المضيف المتوقعة
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900' }}>
+                        {scoreParts[2]}
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 11 }}>
+                        أهداف الضيف المتوقعة
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })() : null}
+
               <Text style={{
                 color: MUTED,
                 fontSize: 11,
