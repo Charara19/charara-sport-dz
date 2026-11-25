@@ -1242,8 +1242,9 @@ export default {
           "https://charara-sport-cache.local/teams/" + teamId + "/logo"
         );
         const cache = caches.default;
+        const forceRefresh = url.searchParams.get("refresh") === "1";
         const cachedLogo = await cache.match(cacheKey);
-        if (cachedLogo) return cachedLogo;
+        if (!forceRefresh && cachedLogo) return cachedLogo;
 
         const upstream = await fetch(
           SPORT_API + "/teams/" + teamId + "/logo",
@@ -1275,7 +1276,9 @@ export default {
           headers: imageHeaders
         });
 
-        await cache.put(cacheKey, logoResponse.clone());
+        if (!forceRefresh) {
+          await cache.put(cacheKey, logoResponse.clone());
+        }
         return logoResponse;
       }
 
