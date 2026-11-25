@@ -604,6 +604,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                 return (
                   <View style={{
                     flexDirection: 'row',
+                    direction: 'ltr',
                     justifyContent: 'space-between',
                     marginTop: 9,
                     paddingHorizontal: 8,
