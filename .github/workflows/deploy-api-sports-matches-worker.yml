@@ -1,0 +1,26 @@
+name: Deploy API-Sports Matches Worker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy matches worker
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CF_ACCOUNT_ID"
+          test -n "$CF_API_TOKEN"
+
+          curl --fail-with-body --silent --show-error \
+            --request PUT \
+            "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/workers/scripts/charara-matches-api/content" \
+            --header "Authorization: Bearer ${CF_API_TOKEN}" \
+            --form 'metadata={"main_module":"worker.js","compatibility_date":"2026-11-25"};type=application/json' \
+            --form 'worker.js=@worker-export/charara-matches-worker.js;type=application/javascript+module'
