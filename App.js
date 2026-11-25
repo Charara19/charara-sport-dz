@@ -678,14 +678,26 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   borderWidth: 1,
                   borderColor: '#31543A',
                 }}>
-                  <Text style={{
-                    color: GREEN,
-                    fontSize: 16,
-                    fontWeight: '900',
-                    textAlign: 'center',
-                  }}>
-                    النتيجة التقديرية: {prediction.result.predicted_score}
-                  </Text>
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{
+                      color: GREEN,
+                      fontSize: 16,
+                      fontWeight: '900',
+                      textAlign: 'center',
+                    }}>
+                      النتيجة التقديرية
+                    </Text>
+                    <Text style={{
+                      color: GREEN,
+                      fontSize: 20,
+                      fontWeight: '900',
+                      textAlign: 'center',
+                      writingDirection: 'ltr',
+                      marginTop: 4,
+                    }}>
+                      {prediction.result.predicted_score}
+                    </Text>
+                  </View>
 
                   <View style={{
                     flexDirection: 'row',
