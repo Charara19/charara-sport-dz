@@ -311,9 +311,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
 
     const candidates = (data.teams || []).filter(team =>
       normalizeTeamName(team.name) === normalized &&
-      !excluded.test(team.name) &&
-      team.league_id != null &&
-      !/^(Europe|World)$/i.test(team.country || '')
+      !excluded.test(team.name)
     );
 
     const uniqueCandidates = [
