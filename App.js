@@ -214,7 +214,7 @@ const officialSportsChannels = [
   },
 ];
 
-const PredictionsPage = ({ matches = [], apiUrl }) => {
+const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
   const [predictionStates, setPredictionStates] = useState({});
   const teamIdsCacheRef = useRef({});
 
@@ -382,45 +382,81 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
     }));
 
     try {
-      const ids = await Promise.all([
-        match.homeTeamId
-          ? Promise.resolve(Number(match.homeTeamId))
-          : resolveTeamId(match.home),
-        match.awayTeamId
-          ? Promise.resolve(Number(match.awayTeamId))
-          : resolveTeamId(match.away)
-      ]);
+      const fixtureId = Number(match.apiSportsFixtureId);
 
-      if (!ids.every(id => Number.isSafeInteger(id) && id > 0)) {
-        throw new Error("معرّفات الفرق غير صالحة");
-      }
-
-      if (ids[0] === ids[1]) {
-        throw new Error('تعذر التمييز بين الفريقين');
+      if (!Number.isSafeInteger(fixtureId) || fixtureId <= 0) {
+        throw new Error('معرّف مباراة API-Sports غير متاح');
       }
 
       const response = await fetch(
-        apiUrl + 'predictions?home=' + ids[0] +
-        '&away=' + ids[1] + '&h2h=1'
+        `${matchesApiUrl}predictions?fixture=${encodeURIComponent(fixtureId)}`
       );
-
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(
-          data.message || data.error || 'تعذر إجراء التحليل'
-        );
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || data.message || 'تعذر إجراء التحليل');
       }
+
+      const item = data.data?.response?.[0];
+      const p = item?.predictions;
+
+      if (!p) {
+        throw new Error('لا توجد توقعات متاحة لهذه المباراة حالياً');
+      }
+
+      const percent = p.percent || {};
+      const parsePercent = value => {
+        const number = Number.parseFloat(String(value ?? '').replace('%', ''));
+        return Number.isFinite(number) ? number : null;
+      };
+
+      const homeGoals = p.goals?.home;
+      const awayGoals = p.goals?.away;
+      const validGoals = value => /^\d+$/.test(String(value ?? ''));
+
+      const predictedScore =
+        validGoals(homeGoals) && validGoals(awayGoals)
+          ? `${homeGoals}-${awayGoals}`
+          : 'غير متاح';
+
+      const homeId = item.teams?.home?.id;
+      const awayId = item.teams?.away?.id;
+      const h2hItems = Array.isArray(item.h2h) ? item.h2h : [];
+
+      const result = {
+        success: true,
+        predicted_score: predictedScore,
+        probabilities: {
+          home_win: parsePercent(percent.home),
+          draw: parsePercent(percent.draw),
+          away_win: parsePercent(percent.away)
+        },
+        sample_size: {
+          home_team: 'غير متاح',
+          away_team: 'غير متاح'
+        },
+        note: p.advice || 'توقع إحصائي تقديري وليس ضماناً للنتيجة',
+        head_to_head: {
+          success: true,
+          team1_id: homeId,
+          team2_id: awayId,
+          matches: h2hItems.map(entry => ({
+            id: entry.fixture?.id,
+            date: entry.fixture?.date || '',
+            league_name: entry.league?.name || '',
+            home_id: entry.teams?.home?.id,
+            away_id: entry.teams?.away?.id,
+            home_team: entry.teams?.home?.name || '',
+            away_team: entry.teams?.away?.name || '',
+            home_score: entry.goals?.home,
+            away_score: entry.goals?.away
+          }))
+        }
+      };
 
       setPredictionStates(previous => ({
         ...previous,
-        [matchKey]: {
-          loading: false,
-          result: data,
-          error: data.success ? '' : (
-            data.message || 'بيانات غير كافية لإصدار توقع موثوق'
-          )
-        }
+        [matchKey]: { loading: false, result, error: '' }
       }));
     } catch (error) {
       setPredictionStates(previous => ({
@@ -433,7 +469,6 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
       }));
     }
   };
-
   return (
     <View style={{ paddingBottom: 24 }}>
       <View style={{
@@ -459,7 +494,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
           marginTop: 9,
           lineHeight: 22,
         }}>
-          تحليل إحصائي يعتمد على آخر خمس مباريات وأداء الفريقين داخل وخارج الملعب.
+          تحليل مباريات كرة القدم باستخدام توقعات API-Sports والبيانات الإحصائية المتاحة.
         </Text>
       </View>
 
@@ -504,7 +539,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
       {upcomingMatches.length > 0 ? (
         upcomingMatches.map((match, index) => {
           const matchKey = String(
-            match.apiFootballFixtureId || match.url || index
+            match.apiSportsFixtureId || match.url || index
           );
           const prediction = predictionStates[matchKey] || {};
 
@@ -707,7 +742,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                   }}>
                     <View style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.away_win}%
+                        {prediction.result.probabilities?.away_win != null ? `${prediction.result.probabilities.away_win}%` : 'غير متاح'}
                       </Text>
                       <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
                         فوز الضيف
@@ -715,7 +750,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                     </View>
                     <View style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.draw}%
+                        {prediction.result.probabilities?.draw != null ? `${prediction.result.probabilities.draw}%` : 'غير متاح'}
                       </Text>
                       <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
                         تعادل
@@ -723,7 +758,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                     </View>
                     <View style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.home_win}%
+                        {prediction.result.probabilities?.home_win != null ? `${prediction.result.probabilities.home_win}%` : 'غير متاح'}
                       </Text>
                       <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
                         فوز المضيف
@@ -737,7 +772,7 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                     textAlign: 'center',
                     marginTop: 12,
                   }}>
-                    عينة التحليل: {prediction.result.sample_size?.home_team} مباريات للمضيف و{prediction.result.sample_size?.away_team} للضيف
+                    تعتمد هذه التوقعات على البيانات الإحصائية المتاحة للمباراة.
                   </Text>
                   <Text style={{
                     color: '#FFD166',
@@ -776,8 +811,9 @@ const PredictionsPage = ({ matches = [], apiUrl }) => {
                         const summary = h2hMatches.reduce((acc, item) => {
                           const homeId = Number(item.home_id);
                           const awayId = Number(item.away_id);
-                          const homeGoals = Number(item.home_score);
-                          const awayGoals = Number(item.away_score);
+                          if (item.home_score == null || item.away_score == null) return acc;
+                  const homeGoals = Number(item.home_score);
+                  const awayGoals = Number(item.away_score);
 
                           if (!Number.isFinite(homeGoals) || !Number.isFinite(awayGoals)) return acc;
 
@@ -2698,6 +2734,7 @@ export default function App() {
   const API_URL = 'https://charara-sport-api.hasnnoui73.workers.dev/';
   const STATS_API_URL = 'https://charara-standings-api.hasnnoui73.workers.dev/';
   const AFCON_API_URL = 'https://charara-sport-standings-api.hasnnoui73.workers.dev/';
+  const MATCHES_API_URL = 'https://charara-matches-api.hasnnoui73.workers.dev/';
 
   const translateFixtureStatus = (code) => {
     const statuses = {
@@ -2920,7 +2957,7 @@ const fetchMatches = async (day = 'today') => {
 
     // تحميل المباريات من API-Football وFabor
     const results = await Promise.allSettled([
-      fetch(`${STATS_API_URL}fixtures?date=${targetDate}`),
+      fetch(`${MATCHES_API_URL}fixtures?date=${targetDate}`),
       fetch(`${API_URL}?day=${day}`)
     ]);
 
@@ -2988,9 +3025,9 @@ const fetchMatches = async (day = 'today') => {
               'موعد المباراة',
             url: `apifootball:${fixture.id}`,
             matchDate: targetDate,
-            isApiFootballFixture: true,
-            apiFootballFixtureId: fixture.id,
-            apiFootballFixture: item,
+            isApiSportsFixture: true,
+            apiSportsFixtureId: fixture.id,
+            apiSportsFixture: item,
             streamUrl: null
           };
         });
@@ -4116,7 +4153,7 @@ useEffect(() => {
                 time: match.time || '',
                 score: match.score || null,
                 status: match.status || '',
-                isApiFootballFixture: !!match.isApiFootballFixture,
+                isApiSportsFixture: !!match.isApiSportsFixture,
               })),
               selectedMatch: selectedMatch ? {
                 home: selectedMatch.home || '',
@@ -5458,7 +5495,7 @@ const maxCol = Math.max(...pitchPlayers.map(p => p.col));
         ) : tab === 'VAR الذكي' ? (
           <VARPage matches={matches} varMedia={varMedia} setVarMedia={setVarMedia} varCase={varCase} setVarCase={setVarCase} varSelectedMatch={varSelectedMatch} setVarSelectedMatch={setVarSelectedMatch} varAnalyzing={varAnalyzing} setVarAnalyzing={setVarAnalyzing} />
         ) : tab === 'توقعات شرارة' ? (
-          <PredictionsPage matches={matches} apiUrl={STATS_API_URL} />
+          <PredictionsPage matches={matches} apiUrl={STATS_API_URL} matchesApiUrl={MATCHES_API_URL} />
         ) : (
           <OtherPage tab={tab} apiUrl={AFCON_API_URL} language={language} setLanguage={setLanguage} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} pushStatus={pushStatus} />
         )}
