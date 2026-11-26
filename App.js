@@ -314,25 +314,29 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
       !excluded.test(team.name)
     );
 
-    const uniqueCandidates = [
-      ...new Map(candidates.map(team => [team.id, team])).values()
-    ];
+    const verifiedCandidates = (await Promise.all(
+      candidates.map(async team => {
+        try {
+          const response = await fetch(apiUrl + "teams/details/" + team.id);
+          if (!response.ok) return null;
+          const details = await response.json();
+          const info = details.team?.team;
+          const leagues = details.team?.leagues || [];
+          if (!info || info.id !== team.id ||
+              normalizeTeamName(info.name) !== normalized ||
+              leagues.length === 0 ||
+              leagues.some(league => /(women|woman|ladies)/i.test(league.name || ""))) {
+            return null;
+          }
+          return team;
+        } catch (error) {
+          return null;
+        }
+      })
+    )).filter(Boolean);
 
-    if (uniqueCandidates.length !== 1) return null;
-
-    const candidate = uniqueCandidates[0];
-    const detailsResponse = await fetch(
-      apiUrl + 'teams/details/' + candidate.id
-    );
-
-    if (!detailsResponse.ok) return null;
-
-    const details = await detailsResponse.json();
-    const actualName = details.team?.team?.name;
-
-    if (!actualName || normalizeTeamName(actualName) !== normalized) {
-      return null;
-    }
+    if (verifiedCandidates.length !== 1) return null;
+    const candidate = verifiedCandidates[0];
 
     sportLogoIdsCacheRef.current[normalized] = candidate.id;
     return candidate.id;
