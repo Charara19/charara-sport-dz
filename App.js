@@ -378,9 +378,22 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
   const analyzeMatch = async (match, matchKey) => {
     setPredictionStates(previous => ({
       ...previous,
-      [matchKey]: { loading: true, result: null, error: '' }
+      [matchKey]: {
+        ...(previous[matchKey] || {}),
+        loading: true,
+        error: '',
+        sportApiError: '',
+        sportApiMessage: ''
+      }
     }));
 
+    let result = null;
+    let error = '';
+    let sportApiResult = null;
+    let sportApiError = '';
+    let sportApiMessage = '';
+
+    // المصدر الأساسي: API-Sports
     try {
       const fixtureId = Number(match.apiSportsFixtureId);
 
@@ -394,14 +407,14 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || data.message || 'تعذر إجراء التحليل');
+        throw new Error(data.error || data.message || 'تعذر إجراء تحليل API-Sports');
       }
 
       const item = data.data?.response?.[0];
       const p = item?.predictions;
 
       if (!p) {
-        throw new Error('لا توجد توقعات متاحة لهذه المباراة حالياً');
+        throw new Error('لا توجد توقعات API-Sports متاحة حالياً');
       }
 
       const percent = p.percent || {};
@@ -413,17 +426,14 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
       const homeGoals = p.goals?.home;
       const awayGoals = p.goals?.away;
       const validGoals = value => /^\d+$/.test(String(value ?? ''));
-
       const predictedScore =
         validGoals(homeGoals) && validGoals(awayGoals)
           ? `${homeGoals}-${awayGoals}`
           : 'غير متاح';
 
-      const homeId = item.teams?.home?.id;
-      const awayId = item.teams?.away?.id;
       const h2hItems = Array.isArray(item.h2h) ? item.h2h : [];
 
-      const result = {
+      result = {
         success: true,
         predicted_score: predictedScore,
         probabilities: {
@@ -438,8 +448,8 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
         note: p.advice || 'توقع إحصائي تقديري وليس ضماناً للنتيجة',
         head_to_head: {
           success: true,
-          team1_id: homeId,
-          team2_id: awayId,
+          team1_id: item.teams?.home?.id,
+          team2_id: item.teams?.away?.id,
           matches: h2hItems.map(entry => ({
             id: entry.fixture?.id,
             date: entry.fixture?.date || '',
@@ -453,22 +463,52 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
           }))
         }
       };
-
-      setPredictionStates(previous => ({
-        ...previous,
-        [matchKey]: { loading: false, result, error: '' }
-      }));
-    } catch (error) {
-      setPredictionStates(previous => ({
-        ...previous,
-        [matchKey]: {
-          loading: false,
-          result: null,
-          error: error.message || 'حدث خطأ أثناء التحليل'
-        }
-      }));
+    } catch (err) {
+      error = err.message || 'حدث خطأ أثناء تحليل API-Sports';
     }
+
+    // المصدر الثانوي المستقل: SportAPI
+    try {
+      const [homeSportId, awaySportId] = await Promise.all([
+        resolveSportApiTeamId(match.home),
+        resolveSportApiTeamId(match.away)
+      ]);
+
+      if (!homeSportId || !awaySportId) {
+        throw new Error('تعذر تحديد معرّفي الفريقين في SportAPI بدقة');
+      }
+
+      const response = await fetch(
+        `${apiUrl}predictions?home=${encodeURIComponent(homeSportId)}&away=${encodeURIComponent(awaySportId)}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'تعذر الاتصال بمصدر SportAPI');
+      }
+
+      if (data.success && data.predicted_score) {
+        sportApiResult = data;
+      } else {
+        sportApiMessage = data.message || 'بيانات غير كافية لإصدار توقع موثوق';
+      }
+    } catch (err) {
+      sportApiError = err.message || 'تعذر إجراء تحليل SportAPI';
+    }
+
+    setPredictionStates(previous => ({
+      ...previous,
+      [matchKey]: {
+        loading: false,
+        result,
+        error,
+        sportApiResult,
+        sportApiError,
+        sportApiMessage
+      }
+    }));
   };
+
   return (
     <View style={{ paddingBottom: 24 }}>
       <View style={{
@@ -702,6 +742,102 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                   lineHeight: 20,
                 }}>
                   {prediction.error}
+                </Text>
+              ) : null}
+
+              {prediction.sportApiResult?.success ? (
+                <View style={{
+                  backgroundColor: '#14251D',
+                  borderRadius: 12,
+                  padding: 13,
+                  marginTop: 12,
+                  borderWidth: 1,
+                  borderColor: '#347653',
+                }}>
+                  <Text style={{
+                    color: '#65D98B',
+                    fontSize: 15,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                  }}>
+                    📈 تحليل SportAPI المستقل
+                  </Text>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 21,
+                    fontWeight: '900',
+                    textAlign: 'center',
+                    marginTop: 9,
+                    writingDirection: 'ltr',
+                  }}>
+                    {prediction.sportApiResult.predicted_score}
+                  </Text>
+                  <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    marginTop: 13,
+                  }}>
+                    {[
+                      { label: 'فوز المضيف', value: prediction.sportApiResult.probabilities?.home_win },
+                      { label: 'تعادل', value: prediction.sportApiResult.probabilities?.draw },
+                      { label: 'فوز الضيف', value: prediction.sportApiResult.probabilities?.away_win },
+                    ].map((item, index) => (
+                      <View key={index} style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
+                          {item.value != null ? `${item.value}%` : 'غير متاح'}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10, marginTop: 4, textAlign: 'center' }}>
+                          {item.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={{
+                    color: MUTED,
+                    fontSize: 11,
+                    textAlign: 'center',
+                    marginTop: 12,
+                  }}>
+                    عينة آخر المباريات المكتملة: {prediction.sportApiResult.sample_size?.home_team ?? '؟'} للمضيف · {prediction.sportApiResult.sample_size?.away_team ?? '؟'} للضيف
+                  </Text>
+                  <Text style={{
+                    color: '#FFFFFF',
+                    fontSize: 11,
+                    textAlign: 'center',
+                    marginTop: 7,
+                  }}>
+                    الأهداف المتوقعة: {prediction.sportApiResult.expected_goals?.home ?? '؟'} - {prediction.sportApiResult.expected_goals?.away ?? '؟'}
+                  </Text>
+                  <Text style={{
+                    color: '#FFD166',
+                    fontSize: 10,
+                    textAlign: 'center',
+                    marginTop: 8,
+                  }}>
+                    {prediction.sportApiResult.note || 'توقع إحصائي تقديري وليس ضماناً للنتيجة'}
+                  </Text>
+                </View>
+              ) : null}
+
+              {prediction.sportApiMessage ? (
+                <Text style={{
+                  color: '#FFD166',
+                  fontSize: 11,
+                  textAlign: 'center',
+                  marginTop: 10,
+                }}>
+                  SportAPI: {prediction.sportApiMessage}
+                </Text>
+              ) : null}
+
+              {prediction.sportApiError ? (
+                <Text style={{
+                  color: MUTED,
+                  fontSize: 11,
+                  textAlign: 'center',
+                  marginTop: 10,
+                }}>
+                  تعذر تحليل SportAPI: {prediction.sportApiError}
                 </Text>
               ) : null}
 
