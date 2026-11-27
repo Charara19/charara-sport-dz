@@ -1083,6 +1083,124 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
 
                 </View>
               ) : null}
+
+              {prediction.result?.success && prediction.sportApiResult?.success ? (() => {
+                const api = prediction.result.probabilities || {};
+                const sport = prediction.sportApiResult.probabilities || {};
+                const comparisons = [
+                  { key: "home_win", label: "فوز المضيف" },
+                  { key: "draw", label: "التعادل" },
+                  { key: "away_win", label: "فوز الضيف" },
+                ].map(item => ({
+                  ...item,
+                  api: api[item.key],
+                  sport: sport[item.key],
+                }));
+                const available = comparisons.filter(item =>
+                  item.api != null && item.sport != null &&
+                  Number.isFinite(Number(item.api)) &&
+                  Number.isFinite(Number(item.sport))
+                );
+                const leader = source => {
+                  const valid = comparisons.filter(item =>
+                    item[source] != null && Number.isFinite(Number(item[source]))
+                  );
+                  return valid.length ? valid.reduce((best, item) =>
+                    Number(item[source]) > Number(best[source]) ? item : best
+                  ) : null;
+                };
+                const apiLeader = leader("api");
+                const sportLeader = leader("sport");
+                if (!available.length) return null;
+                return (
+                  <View style={{
+                    backgroundColor: "#101D17",
+                    borderRadius: 12,
+                    padding: 13,
+                    marginTop: 12,
+                    borderWidth: 1,
+                    borderColor: "#52745B",
+                  }}>
+                    <Text style={{
+                      color: GREEN,
+                      fontSize: 15,
+                      fontWeight: "900",
+                      textAlign: "center",
+                      marginBottom: 13,
+                    }}>
+                      ⚖️ مقارنة المصدرين
+                    </Text>
+                    <View style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: 9,
+                    }}>
+                      <Text style={{ flex: 1, color: MUTED, fontSize: 10, textAlign: "center" }}>الاحتمال</Text>
+                      <Text style={{ flex: 1, color: "#65D98B", fontSize: 10, fontWeight: "900", textAlign: "center" }}>API-Sports</Text>
+                      <Text style={{ flex: 1, color: "#FFD166", fontSize: 10, fontWeight: "900", textAlign: "center" }}>SportAPI</Text>
+                    </View>
+                    {available.map(item => (
+                      <View key={item.key} style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        paddingVertical: 9,
+                        borderTopWidth: 1,
+                        borderTopColor: "#263A2D",
+                      }}>
+                        <Text style={{ flex: 1, color: "#FFFFFF", fontSize: 11, textAlign: "center" }}>{item.label}</Text>
+                        <Text style={{
+                          flex: 1,
+                          color: Number(item.api) >= Number(item.sport) ? GREEN : MUTED,
+                          fontSize: 13,
+                          fontWeight: "900",
+                          textAlign: "center",
+                        }}>{item.api}%</Text>
+                        <Text style={{
+                          flex: 1,
+                          color: Number(item.sport) >= Number(item.api) ? "#FFD166" : MUTED,
+                          fontSize: 13,
+                          fontWeight: "900",
+                          textAlign: "center",
+                        }}>{item.sport}%</Text>
+                      </View>
+                    ))}
+                    <View style={{
+                      backgroundColor: "#17251B",
+                      borderRadius: 9,
+                      padding: 10,
+                      marginTop: 11,
+                    }}>
+                      <Text style={{ color: "#65D98B", fontSize: 11, textAlign: "center", marginBottom: 6 }}>
+                        ترجيح API-Sports: {apiLeader?.label || "غير متاح"}
+                      </Text>
+                      <Text style={{ color: "#FFD166", fontSize: 11, textAlign: "center" }}>
+                        ترجيح SportAPI: {sportLeader?.label || "غير متاح"}
+                      </Text>
+                      <Text style={{
+                        color: "#FFFFFF",
+                        fontSize: 11,
+                        textAlign: "center",
+                        marginTop: 10,
+                        fontWeight: "900",
+                      }}>
+                        {apiLeader && sportLeader
+                          ? apiLeader.key === sportLeader.key
+                            ? "المصدران متفقان على النتيجة الأكثر احتمالاً"
+                            : "المصدران يختلفان في النتيجة الأكثر احتمالاً"
+                          : "بيانات المقارنة غير مكتملة"}
+                      </Text>
+                    </View>
+                    <Text style={{
+                      color: MUTED,
+                      fontSize: 10,
+                      textAlign: "center",
+                      marginTop: 9,
+                    }}>
+                      مقارنة إحصائية بين المصدرين وليست ضماناً لنتيجة المباراة.
+                    </Text>
+                  </View>
+                );
+              })() : null}
             </View>
           );
         })
