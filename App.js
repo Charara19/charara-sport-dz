@@ -299,33 +299,60 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
       return sportLogoIdsCacheRef.current[normalized];
     }
 
-    const response = await fetch(
-      apiUrl + 'teams/search?query=' +
-      encodeURIComponent(teamName) + '&limit=20'
-    );
+    const original = String(teamName || '').trim();
+    const queryVariants = [...new Set([
+      original,
+      original.replace(/-/g, ' '),
+      original.replace(/\bMoscow\b/gi, 'Moskva'),
+      original.replace(/\bMoskva\b/gi, 'Moscow'),
+      original.replace(/\bSaint\b/gi, 'St'),
+      original.replace(/\bSt\.\s*/gi, 'Saint '),
+    ].filter(Boolean))];
 
-    if (!response.ok) return null;
-
-    const data = await response.json();
     const excluded = /(women|woman|ladies|youth|reserve|u19|u20|u21|u23|ii|iii)/i;
+    const normalizedVariants = new Set(queryVariants.map(normalizeTeamName));
+    let possible = [];
 
-    const candidates = (data.teams || []).filter(team =>
-      normalizeTeamName(team.name) === normalized &&
-      !excluded.test(team.name)
-    );
+    // ابدأ بالاسم الأصلي، ولا تستخدم البدائل إلا عند الحاجة.
+    for (const query of queryVariants) {
+      try {
+        const response = await fetch(
+          apiUrl + 'teams/search?query=' +
+          encodeURIComponent(query) + '&limit=50'
+        );
+        if (!response.ok) continue;
+        const data = await response.json();
+        const teams = Array.isArray(data.teams) ? data.teams : [];
+        const exactMatches = teams.filter(team =>
+          team && team.id &&
+          !excluded.test(team.name || '') &&
+          normalizeTeamName(team.name) === normalizeTeamName(query)
+        );
+        if (exactMatches.length) {
+          possible = [...new Map(
+            exactMatches.map(team => [String(team.id), team])
+          ).values()];
+          break;
+        }
+      } catch (error) {
+        // جرّب صيغة الاسم التالية عند فشل الطلب.
+      }
+    }
 
     const verifiedCandidates = (await Promise.all(
-      candidates.map(async team => {
+      possible.map(async team => {
         try {
-          const response = await fetch(apiUrl + "teams/details/" + team.id);
+          const response = await fetch(apiUrl + 'teams/details/' + team.id);
           if (!response.ok) return null;
           const details = await response.json();
           const info = details.team?.team;
           const leagues = details.team?.leagues || [];
-          if (!info || info.id !== team.id ||
-              normalizeTeamName(info.name) !== normalized ||
+          if (!info || Number(info.id) !== Number(team.id) ||
+              !normalizedVariants.has(normalizeTeamName(info.name)) ||
               leagues.length === 0 ||
-              leagues.some(league => /(women|woman|ladies)/i.test(league.name || ""))) {
+              leagues.some(league =>
+                /(women|woman|ladies)/i.test(league.name || '')
+              )) {
             return null;
           }
           return team;
@@ -336,8 +363,8 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
     )).filter(Boolean);
 
     if (verifiedCandidates.length !== 1) return null;
-    const candidate = verifiedCandidates[0];
 
+    const candidate = verifiedCandidates[0];
     sportLogoIdsCacheRef.current[normalized] = candidate.id;
     return candidate.id;
   };
