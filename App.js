@@ -216,7 +216,147 @@ const officialSportsChannels = [
 
 const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
   const [predictionStates, setPredictionStates] = useState({});
+  const [predictionHistory, setPredictionHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const teamIdsCacheRef = useRef({});
+  const predictionHistoryKey = '@charara/prediction_accuracy_v1';
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(predictionHistoryKey)
+      .then(raw => {
+        if (!active) return;
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) setPredictionHistory(parsed);
+          } catch (error) {
+            console.log('Prediction history parse error:', error.message);
+          }
+        }
+        setHistoryLoaded(true);
+      })
+      .catch(error => {
+        console.log('Prediction history load error:', error.message);
+        if (active) setHistoryLoaded(true);
+      });
+    return () => { active = false; };
+  }, []);
+
+  const savePredictionSnapshots = snapshots => {
+    if (!historyLoaded || !snapshots.length) return;
+    setPredictionHistory(previous => {
+      const next = [...previous];
+      snapshots.forEach(snapshot => {
+        if (!next.some(item => item.id === snapshot.id)) next.push(snapshot);
+      });
+      AsyncStorage.setItem(predictionHistoryKey, JSON.stringify(next))
+        .catch(error => console.log('Prediction history save error:', error.message));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!historyLoaded || !predictionHistory.length || !Array.isArray(matches)) return;
+
+    const finalStatuses = new Set(['FT', 'AET', 'PEN']);
+    const finishedById = new Map();
+
+    matches.forEach(match => {
+      const fixtureId = Number(match?.apiSportsFixtureId);
+      const fixture = match?.apiSportsFixture;
+      const status = fixture?.fixture?.status?.short;
+      const homeGoals = fixture?.goals?.home;
+      const awayGoals = fixture?.goals?.away;
+
+      if (
+        Number.isSafeInteger(fixtureId) &&
+        finalStatuses.has(status) &&
+        Number.isInteger(Number(homeGoals)) &&
+        Number.isInteger(Number(awayGoals)) &&
+        homeGoals !== null &&
+        awayGoals !== null
+      ) {
+        finishedById.set(fixtureId, {
+          home: Number(homeGoals),
+          away: Number(awayGoals)
+        });
+      }
+    });
+
+    if (!finishedById.size) return;
+
+    setPredictionHistory(previous => {
+      let changed = false;
+      const next = previous.map(record => {
+        if (record.evaluated) return record;
+
+        const actual = finishedById.get(Number(record.fixtureId));
+        if (!actual) return record;
+
+        const predicted = String(record.predictedScore || '').match(/^(\d+)\s*[-:]\s*(\d+)$/);
+        let exactCorrect = null;
+        let outcomeCorrect = null;
+
+        if (predicted) {
+          const predictedHome = Number(predicted[1]);
+          const predictedAway = Number(predicted[2]);
+          exactCorrect = predictedHome === actual.home && predictedAway === actual.away;
+
+          const predictedOutcome = Math.sign(predictedHome - predictedAway);
+          const actualOutcome = Math.sign(actual.home - actual.away);
+          outcomeCorrect = predictedOutcome === actualOutcome;
+        }
+
+        changed = true;
+        return {
+          ...record,
+          evaluated: true,
+          actualScore: `${actual.home}-${actual.away}`,
+          exactCorrect,
+          outcomeCorrect,
+          evaluatedAt: new Date().toISOString()
+        };
+      });
+
+      if (changed) {
+        AsyncStorage.setItem(predictionHistoryKey, JSON.stringify(next))
+          .catch(error => console.log('Prediction evaluation save error:', error.message));
+        return next;
+      }
+      return previous;
+    });
+  }, [matches, historyLoaded, predictionHistory]);
+
+  const getPredictionHistoryStats = source => {
+    const records = predictionHistory.filter(item => item.source === source);
+    const validRecords = records.filter(item =>
+      item.evaluated &&
+      /^\d+\s*[-:]\s*\d+$/.test(String(item.predictedScore || '')) &&
+      typeof item.exactCorrect === 'boolean' &&
+      typeof item.outcomeCorrect === 'boolean'
+    );
+
+    const exactCorrect = validRecords.filter(item => item.exactCorrect).length;
+    const outcomeCorrect = validRecords.filter(item => item.outcomeCorrect).length;
+
+    return {
+      total: records.length,
+      evaluated: validRecords.length,
+      pending: records.filter(item => !item.evaluated).length,
+      exactCorrect,
+      outcomeCorrect,
+      exactRate: validRecords.length
+        ? Math.round((exactCorrect / validRecords.length) * 100)
+        : null,
+      outcomeRate: validRecords.length
+        ? Math.round((outcomeCorrect / validRecords.length) * 100)
+        : null
+    };
+  };
+
+  const apiSportsHistoryStats = getPredictionHistoryStats('API-Sports');
+  const sportApiHistoryStats = getPredictionHistoryStats('SportAPI');
 
   const upcomingMatches = Array.isArray(matches)
     ? matches.filter(match =>
@@ -525,6 +665,38 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
       sportApiError = err.message || 'تعذر إجراء تحليل SportAPI';
     }
 
+    const historyFixtureId = Number(match.apiSportsFixtureId);
+    if (Number.isSafeInteger(historyFixtureId) && historyFixtureId > 0) {
+      const snapshots = [];
+      const common = {
+        fixtureId: historyFixtureId,
+        home: match.home,
+        away: match.away,
+        league: match.league || '',
+        matchDate: match.apiSportsFixture?.fixture?.date || match.matchDate || '',
+        createdAt: new Date().toISOString(),
+        evaluated: false,
+        actualScore: null
+      };
+      if (result?.success) {
+        snapshots.push({
+          ...common,
+          id: `${historyFixtureId}:api-sports`,
+          source: 'API-Sports',
+          predictedScore: result.predicted_score || ''
+        });
+      }
+      if (sportApiResult?.success && sportApiResult.predicted_score) {
+        snapshots.push({
+          ...common,
+          id: `${historyFixtureId}:sportapi`,
+          source: 'SportAPI',
+          predictedScore: sportApiResult.predicted_score
+        });
+      }
+      savePredictionSnapshots(snapshots);
+    }
+
     setPredictionStates(previous => ({
       ...previous,
       [matchKey]: {
@@ -565,6 +737,88 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
         }}>
           تحليل مباريات كرة القدم باستخدام توقعات API-Sports والبيانات الإحصائية المتاحة.
         </Text>
+      </View>
+
+      <View style={{
+        backgroundColor: '#101A14',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#245235',
+        padding: 14,
+        marginBottom: 18,
+      }}>
+        <Text style={{
+          color: GREEN,
+          fontSize: 17,
+          fontWeight: '900',
+          textAlign: 'right',
+          marginBottom: 12,
+        }}>
+          📈 سجل دقة توقعات شرارة
+        </Text>
+
+        {!historyLoaded ? (
+          <Text style={{ color: MUTED, textAlign: 'right' }}>
+            جارٍ تحميل سجل التوقعات...
+          </Text>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[
+              { name: 'API-Sports', stats: apiSportsHistoryStats },
+              { name: 'SportAPI', stats: sportApiHistoryStats }
+            ].map(source => (
+              <View key={source.name} style={{
+                flex: 1,
+                backgroundColor: '#17251B',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#31543A',
+                padding: 10,
+              }}>
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 13,
+                  fontWeight: '900',
+                  textAlign: 'right',
+                  marginBottom: 10,
+                }}>
+                  {source.name}
+                </Text>
+
+                <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right' }}>
+                  دقة النتيجة
+                </Text>
+                <Text style={{
+                  color: GREEN,
+                  fontSize: 21,
+                  fontWeight: '900',
+                  textAlign: 'right',
+                }}>
+                  {source.stats.exactRate === null ? '—' : `${source.stats.exactRate}%`}
+                </Text>
+
+                <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 7 }}>
+                  دقة الفائز أو التعادل
+                </Text>
+                <Text style={{
+                  color: '#FFD166',
+                  fontSize: 19,
+                  fontWeight: '900',
+                  textAlign: 'right',
+                }}>
+                  {source.stats.outcomeRate === null ? '—' : `${source.stats.outcomeRate}%`}
+                </Text>
+
+                <Text style={{ color: '#D0DAD2', fontSize: 11, textAlign: 'right', marginTop: 9 }}>
+                  تم تقييمها: {source.stats.evaluated}
+                </Text>
+                <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 3 }}>
+                  بانتظار النتيجة: {source.stats.pending}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={{
@@ -743,10 +997,10 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
               </Text>
 
               <TouchableOpacity
-                disabled={!!prediction.loading}
+                disabled={!!prediction.loading || !historyLoaded}
                 onPress={() => analyzeMatch(match, matchKey)}
                 style={{
-                  backgroundColor: prediction.loading ? '#26352B' : '#153D27',
+                  backgroundColor: prediction.loading || !historyLoaded ? '#26352B' : '#153D27',
                   padding: 13,
                   borderRadius: 10,
                   marginTop: 13,
