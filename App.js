@@ -957,31 +957,55 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
               {prediction.result?.success ? (() => {
                 const scoreParts = String(prediction.result.predicted_score || '')
                   .match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
-                if (!scoreParts) return null;
-
+                const probabilities = prediction.result.probabilities || {};
                 return (
                   <View style={{
                     flexDirection: 'row',
                     direction: 'ltr',
-                    justifyContent: 'space-between',
-                    marginTop: 9,
-                    paddingHorizontal: 8,
+                    alignItems: 'center',
+                    marginTop: 12,
+                    padding: 10,
+                    backgroundColor: '#101D17',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: '#31543A',
                   }}>
                     <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900' }}>
-                        {scoreParts[1]}
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900', textAlign: 'center' }}>
+                        {match.home}
                       </Text>
-                      <Text style={{ color: MUTED, fontSize: 11 }}>
-                        أهداف المضيف المتوقعة
+                      <Text style={{ color: GREEN, fontSize: 21, fontWeight: '900', marginTop: 5 }}>
+                        {scoreParts?.[1] ?? '—'}
                       </Text>
+                      <Text style={{ color: MUTED, fontSize: 10 }}>Expected Goals</Text>
+                      <Text style={{ color: '#65D98B', fontSize: 13, fontWeight: '900', marginTop: 5 }}>
+                        {probabilities.home_win != null ? `${probabilities.home_win}%` : '—'}
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 10 }}>Win Chance</Text>
                     </View>
+
+                    <View style={{ alignItems: 'center', paddingHorizontal: 8 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '900' }}>
+                        {scoreParts ? prediction.result.predicted_score : '—'}
+                      </Text>
+                      <Text style={{ color: '#FFD166', fontSize: 13, fontWeight: '900', marginTop: 7 }}>
+                        {probabilities.draw != null ? `${probabilities.draw}%` : '—'}
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 10 }}>Draw</Text>
+                    </View>
+
                     <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: GREEN, fontSize: 19, fontWeight: '900' }}>
-                        {scoreParts[2]}
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900', textAlign: 'center' }}>
+                        {match.away}
                       </Text>
-                      <Text style={{ color: MUTED, fontSize: 11 }}>
-                        أهداف الضيف المتوقعة
+                      <Text style={{ color: GREEN, fontSize: 21, fontWeight: '900', marginTop: 5 }}>
+                        {scoreParts?.[2] ?? '—'}
                       </Text>
+                      <Text style={{ color: MUTED, fontSize: 10 }}>Expected Goals</Text>
+                      <Text style={{ color: '#65D98B', fontSize: 13, fontWeight: '900', marginTop: 5 }}>
+                        {probabilities.away_win != null ? `${probabilities.away_win}%` : '—'}
+                      </Text>
+                      <Text style={{ color: MUTED, fontSize: 10 }}>Win Chance</Text>
                     </View>
                   </View>
                 );
@@ -1028,79 +1052,97 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                 </Text>
               ) : null}
 
-              {prediction.sportApiResult?.success ? (
-                <View style={{
-                  backgroundColor: '#14251D',
-                  borderRadius: 12,
-                  padding: 13,
-                  marginTop: 12,
-                  borderWidth: 1,
-                  borderColor: '#347653',
-                }}>
-                  <Text style={{
-                    color: '#65D98B',
-                    fontSize: 15,
-                    fontWeight: '900',
-                    textAlign: 'center',
-                  }}>
-                    📈 تحليل SportAPI المستقل
-                  </Text>
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 21,
-                    fontWeight: '900',
-                    textAlign: 'center',
-                    marginTop: 9,
-                    writingDirection: 'ltr',
-                  }}>
-                    {prediction.sportApiResult.predicted_score}
-                  </Text>
+              {prediction.sportApiResult?.success ? (() => {
+                const sport = prediction.sportApiResult;
+                const probabilities = sport.probabilities || {};
+                const goals = sport.expected_goals || {};
+                const display = value => value != null && Number.isFinite(Number(value))
+                  ? String(value)
+                  : '—';
+
+                return (
                   <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginTop: 13,
-                  }}>
-                    {[
-                      { label: 'فوز المضيف', value: prediction.sportApiResult.probabilities?.home_win },
-                      { label: 'تعادل', value: prediction.sportApiResult.probabilities?.draw },
-                      { label: 'فوز الضيف', value: prediction.sportApiResult.probabilities?.away_win },
-                    ].map((item, index) => (
-                      <View key={index} style={{ flex: 1, alignItems: 'center' }}>
-                        <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
-                          {item.value != null ? `${item.value}%` : 'غير متاح'}
-                        </Text>
-                        <Text style={{ color: MUTED, fontSize: 10, marginTop: 4, textAlign: 'center' }}>
-                          {item.label}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                  <Text style={{
-                    color: MUTED,
-                    fontSize: 11,
-                    textAlign: 'center',
+                    backgroundColor: '#14251D',
+                    borderRadius: 12,
+                    padding: 13,
                     marginTop: 12,
+                    borderWidth: 1,
+                    borderColor: '#347653',
                   }}>
-                    عينة آخر المباريات المكتملة: {prediction.sportApiResult.sample_size?.home_team ?? '؟'} للمضيف · {prediction.sportApiResult.sample_size?.away_team ?? '؟'} للضيف
-                  </Text>
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 11,
-                    textAlign: 'center',
-                    marginTop: 7,
-                  }}>
-                    الأهداف المتوقعة: {prediction.sportApiResult.expected_goals?.home ?? '؟'} - {prediction.sportApiResult.expected_goals?.away ?? '؟'}
-                  </Text>
-                  <Text style={{
-                    color: '#FFD166',
-                    fontSize: 10,
-                    textAlign: 'center',
-                    marginTop: 8,
-                  }}>
-                    {prediction.sportApiResult.note || 'توقع إحصائي تقديري وليس ضماناً للنتيجة'}
-                  </Text>
-                </View>
-              ) : null}
+                    <Text style={{
+                      color: '#65D98B',
+                      fontSize: 15,
+                      fontWeight: '900',
+                      textAlign: 'center',
+                    }}>
+                      SPORTAPI PREDICTION
+                    </Text>
+
+                    <View style={{
+                      flexDirection: 'row',
+                      direction: 'ltr',
+                      alignItems: 'center',
+                      marginTop: 12,
+                    }}>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900', textAlign: 'center' }}>
+                          {match.home}
+                        </Text>
+                        <Text style={{ color: '#65D98B', fontSize: 21, fontWeight: '900', marginTop: 5 }}>
+                          {display(goals.home)}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10 }}>Expected Goals</Text>
+                        <Text style={{ color: '#65D98B', fontSize: 13, fontWeight: '900', marginTop: 5 }}>
+                          {display(probabilities.home_win)}{probabilities.home_win != null ? '%' : ''}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10 }}>Win Chance</Text>
+                      </View>
+
+                      <View style={{ alignItems: 'center', paddingHorizontal: 8 }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: '900', writingDirection: 'ltr' }}>
+                          {sport.predicted_score || '—'}
+                        </Text>
+                        <Text style={{ color: '#FFD166', fontSize: 13, fontWeight: '900', marginTop: 7 }}>
+                          {display(probabilities.draw)}{probabilities.draw != null ? '%' : ''}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10 }}>Draw</Text>
+                      </View>
+
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900', textAlign: 'center' }}>
+                          {match.away}
+                        </Text>
+                        <Text style={{ color: '#65D98B', fontSize: 21, fontWeight: '900', marginTop: 5 }}>
+                          {display(goals.away)}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10 }}>Expected Goals</Text>
+                        <Text style={{ color: '#65D98B', fontSize: 13, fontWeight: '900', marginTop: 5 }}>
+                          {display(probabilities.away_win)}{probabilities.away_win != null ? '%' : ''}
+                        </Text>
+                        <Text style={{ color: MUTED, fontSize: 10 }}>Win Chance</Text>
+                      </View>
+                    </View>
+
+                    <Text style={{
+                      color: MUTED,
+                      fontSize: 10,
+                      textAlign: 'center',
+                      marginTop: 12,
+                      writingDirection: 'ltr',
+                    }}>
+                      Recent completed matches: Home {sport.sample_size?.home_team ?? '—'} · Away {sport.sample_size?.away_team ?? '—'}
+                    </Text>
+                    <Text style={{
+                      color: '#FFD166',
+                      fontSize: 10,
+                      textAlign: 'center',
+                      marginTop: 8,
+                    }}>
+                      {sport.note || 'Statistical estimate, not a guaranteed result'}
+                    </Text>
+                  </View>
+                );
+              })() : null}
 
               {prediction.sportApiMessage ? (
                 <Text style={{
@@ -1133,74 +1175,6 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                   borderWidth: 1,
                   borderColor: '#31543A',
                 }}>
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{
-                      color: GREEN,
-                      fontSize: 16,
-                      fontWeight: '900',
-                      textAlign: 'center',
-                    }}>
-                      النتيجة التقديرية
-                    </Text>
-                    <Text style={{
-                      color: GREEN,
-                      fontSize: 20,
-                      fontWeight: '900',
-                      textAlign: 'center',
-                      writingDirection: 'ltr',
-                      marginTop: 4,
-                    }}>
-                      {prediction.result.predicted_score}
-                    </Text>
-                  </View>
-
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginTop: 14,
-                  }}>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.away_win != null ? `${prediction.result.probabilities.away_win}%` : 'غير متاح'}
-                      </Text>
-                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                        فوز الضيف
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.draw != null ? `${prediction.result.probabilities.draw}%` : 'غير متاح'}
-                      </Text>
-                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                        تعادل
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: '#FFFFFF', fontWeight: '900' }}>
-                        {prediction.result.probabilities?.home_win != null ? `${prediction.result.probabilities.home_win}%` : 'غير متاح'}
-                      </Text>
-                      <Text style={{ color: MUTED, fontSize: 11, marginTop: 4 }}>
-                        فوز المضيف
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={{
-                    color: MUTED,
-                    fontSize: 11,
-                    textAlign: 'center',
-                    marginTop: 12,
-                  }}>
-                    تعتمد هذه التوقعات على البيانات الإحصائية المتاحة للمباراة.
-                  </Text>
-                  <Text style={{
-                    color: '#FFD166',
-                    fontSize: 11,
-                    textAlign: 'center',
-                    marginTop: 7,
-                  }}>
-                    {prediction.result.note || 'توقع تقديري وليس ضماناً للنتيجة'}
-                  </Text>
                   {prediction.result.head_to_head ? (
                     <View style={{
                       backgroundColor: '#101A14',
