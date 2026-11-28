@@ -726,7 +726,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
           fontWeight: '900',
           textAlign: 'right',
         }}>
-          📊 توقعات شرارة
+          📊 CHARARA PREDICTIONS
         </Text>
         <Text style={{
           color: MUTED,
@@ -735,7 +735,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
           marginTop: 9,
           lineHeight: 22,
         }}>
-          تحليل مباريات كرة القدم باستخدام توقعات API-Sports والبيانات الإحصائية المتاحة.
+          Football match analysis powered by API-Sports predictions and available statistical data.
         </Text>
       </View>
 
@@ -754,12 +754,12 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
           textAlign: 'right',
           marginBottom: 12,
         }}>
-          📈 سجل دقة توقعات شرارة
+          📈 PREDICTION ACCURACY HISTORY
         </Text>
 
         {!historyLoaded ? (
           <Text style={{ color: MUTED, textAlign: 'right' }}>
-            جارٍ تحميل سجل التوقعات...
+            Loading prediction history...
           </Text>
         ) : (
           <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -786,7 +786,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                 </Text>
 
                 <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right' }}>
-                  دقة النتيجة
+                  Exact Score Accuracy
                 </Text>
                 <Text style={{
                   color: GREEN,
@@ -798,7 +798,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                 </Text>
 
                 <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 7 }}>
-                  دقة الفائز أو التعادل
+                  Match Outcome Accuracy
                 </Text>
                 <Text style={{
                   color: '#FFD166',
@@ -810,10 +810,10 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
                 </Text>
 
                 <Text style={{ color: '#D0DAD2', fontSize: 11, textAlign: 'right', marginTop: 9 }}>
-                  تم تقييمها: {source.stats.evaluated}
+                  Evaluated: {source.stats.evaluated}
                 </Text>
                 <Text style={{ color: MUTED, fontSize: 11, textAlign: 'right', marginTop: 3 }}>
-                  بانتظار النتيجة: {source.stats.pending}
+                  Pending results: {source.stats.pending}
                 </Text>
               </View>
             ))}
@@ -835,7 +835,7 @@ const PredictionsPage = ({ matches = [], apiUrl, matchesApiUrl }) => {
           fontWeight: '900',
           textAlign: 'right',
         }}>
-          ⚠️ التوقعات تقديرية وليست ضماناً للنتيجة
+          ⚠️ Predictions are estimates, not guaranteed results
         </Text>
         <Text style={{
           color: '#D0DAD2',
@@ -3676,10 +3676,10 @@ useEffect(() => {
     // جلب المباريات فور فتح الصفحة
     fetchMatches(matchDay);
 
-    // تحديث تلقائي كل دقيقة
+    // تحديث تلقائي كل 10 دقائق
     const timer = setInterval(() => {
       fetchMatches(matchDay);
-    }, 60000);
+    }, 10 * 60 * 1000);
 
     return () => clearInterval(timer);
   }, [tab, matchDay]);
