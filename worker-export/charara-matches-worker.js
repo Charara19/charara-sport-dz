@@ -1,7 +1,7 @@
 const API_BASE = "https://v3.football.api-sports.io";
 
 const CACHE_TTL = {
-  fixtures: 60,
+  fixtures: 300,
   details: 30,
   predictions: 21600,
   teams: 86400
@@ -32,6 +32,17 @@ async function apiRequest(endpoint, env, ttl) {
 
   if (cached) return await cached.json();
 
+  const rateLimitKey = new Request(
+    "https://charara-matches-cache.local/rate-limit-cooldown",
+    { method: "GET" }
+  );
+
+  const cooldown = await cache.match(rateLimitKey);
+  if (cooldown) {
+    const blocked = await cooldown.json();
+    throw new Error(blocked.error || "API-Sports rate limit cooldown");
+  }
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
       "x-apisports-key": env.API_SPORTS_KEY,
@@ -40,6 +51,28 @@ async function apiRequest(endpoint, env, ttl) {
   });
 
   const data = await response.json();
+
+  const apiErrorText = JSON.stringify(data.errors || data);
+
+  if (
+    response.status === 429 ||
+    data.rateLimit ||
+    /too many requests|exceeded.*limit/i.test(apiErrorText)
+  ) {
+    const message = "API-Sports rate limit reached. Retry after 60 seconds.";
+
+    await cache.put(rateLimitKey, new Response(
+      JSON.stringify({ error: message }),
+      {
+        headers: {
+          ...CORS_HEADERS,
+          "Cache-Control": "public, max-age=60"
+        }
+      }
+    ));
+
+    throw new Error(message);
+  }
 
   if (!response.ok || (data.errors && Object.keys(data.errors).length)) {
     throw new Error(
